@@ -1,0 +1,5 @@
+{
+  "name": "TEMA Flange & Bolt BCD Calculator_FINAL",
+  "description": "A professional engineering tool to calculate Bolt Circle Diameter (BCD) and Flange Outer Diameter (OD) based on TEMA (Tubular Exchanger Manufacturers Association) latest standards, featuring interactive calculations and visual feedback.",
+  "requestFramePermissions": []
+}
