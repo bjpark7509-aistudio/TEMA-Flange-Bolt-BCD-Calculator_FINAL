@@ -1,3 +1,4 @@
+
 export interface BoltMaterial {
   id: string;
   minTensile?: number; // MPa
@@ -86,6 +87,8 @@ export interface FlangeInputs {
 
   // Custom Legend Image
   customLegendUrl?: string;
+  // Added gasketPreference to fix property missing error in Calculator.tsx
+  gasketPreference?: 'bcd' | 'shell';
 }
 
 export interface TemaBoltInfo {

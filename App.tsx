@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Calculator } from './components/Calculator';
 import { ResultTable } from './components/ResultTable';
@@ -94,6 +95,7 @@ const calculateAutoG0 = (currentInputs: Partial<FlangeInputs>, plateMaterials: S
   return Math.ceil(autoG0);
 };
 
+// Initial state for FlangeInputs
 const initialInputs: FlangeInputs = {
   itemNo: 'GEN-001',
   partName: 'CHANNEL SIDE',
@@ -144,10 +146,11 @@ const initialInputs: FlangeInputs = {
   phiGMax: 1,
   g: 0.7,
   passPartAreaReduction: 50,
+  // gasketPreference 초기값을 undefined로 두어 Math.max(Auto-Max) 로직이 먼저 실행되게 함
+  gasketPreference: undefined,
 };
 
 const App: React.FC = () => {
-  // Library data (Materials, standards) remains persistent
   const [boltMaterials, setBoltMaterials] = useState<BoltMaterial[]>(() => {
     const saved = localStorage.getItem('flange_genie_bolt_materials');
     return saved ? JSON.parse(saved) : INITIAL_BOLT_MATERIALS;
@@ -178,7 +181,6 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : INITIAL_RING_STANDARDS;
   });
 
-  // Project data (Inputs, Records) resets on load, preserving only the custom legend
   const [inputs, setInputs] = useState<FlangeInputs>(() => {
     const savedLegend = localStorage.getItem('flange_genie_custom_legend');
     if (savedLegend) {
@@ -191,7 +193,6 @@ const App: React.FC = () => {
   const [savedRecords, setSavedRecords] = useState<SavedRecord[]>([]);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
-  // Persistence: Only libraries and custom legend are saved
   useEffect(() => {
     if (inputs.customLegendUrl) {
       localStorage.setItem('flange_genie_custom_legend', inputs.customLegendUrl);
@@ -248,11 +249,21 @@ const App: React.FC = () => {
     const autoSeatingOD_BCD = baseBCDForAutoGasket - roundedHoleSize - (2 * effectiveC) - (2 * bConst) - (2 * outerRingWidth);
     const autoSeatingOD_Shell = currentInputs.insideDia + (2 * shellGapA) + (2 * innerRingWidth) + (2 * currentInputs.gasketSeatingWidth);
 
-    const autoSeatingOD = Math.max(autoSeatingOD_BCD, autoSeatingOD_Shell);
+    // Gasket Preference가 명시되지 않은 경우, 더 큰 값이 먼저 활성화되도록 로직 수정
+    let autoSeatingOD = 0;
+    if (currentInputs.gasketPreference === 'shell') {
+      autoSeatingOD = autoSeatingOD_Shell;
+    } else if (currentInputs.gasketPreference === 'bcd') {
+      autoSeatingOD = autoSeatingOD_BCD;
+    } else {
+      // 자동 선택 모드: 두 값 중 더 큰 값을 선택 (큰 값이 먼저 활성화됨)
+      autoSeatingOD = Math.max(autoSeatingOD_BCD, autoSeatingOD_Shell);
+    }
+    
     const autoSeatingID = autoSeatingOD - (2 * currentInputs.gasketSeatingWidth);
 
-    const seatingID = (currentInputs.useManualOverride && currentInputs.manualSeatingID !== 0) ? currentInputs.manualSeatingID : autoSeatingID;
-    const seatingOD = (currentInputs.useManualOverride && currentInputs.manualSeatingOD !== 0) ? currentInputs.manualSeatingOD : autoSeatingOD;
+    const seatingID = currentInputs.useManualOverride ? currentInputs.manualSeatingID : autoSeatingID;
+    const seatingOD = currentInputs.useManualOverride ? currentInputs.manualSeatingOD : autoSeatingOD;
     
     const gasketOD = seatingOD + (currentInputs.hasOuterRing ? (2 * outerRingWidth) : 0);
     const gasketID = seatingID - (currentInputs.hasInnerRing ? (2 * innerRingWidth) : 0);
@@ -363,7 +374,12 @@ const App: React.FC = () => {
   const handleInputChange = (updatedInputs: FlangeInputs, changedFieldName: string) => {
     let finalInputs = { ...updatedInputs };
 
-    // g0 triggers: shell ID, design conditions, materials, allowances
+    // 지오메트리 핵심 변경 시 Logic Preference 초기화 -> "큰 값이 먼저 활성화되게" 보장
+    const geometryTriggers = ['insideDia', 'boltCount', 'boltSize', 'g0', 'cClearance', 'shellGapA', 'gasketSeatingWidth'];
+    if (geometryTriggers.includes(changedFieldName)) {
+      finalInputs.gasketPreference = undefined;
+    }
+
     const g0Triggers = ['insideDia', 'designTemp', 'tempUnit', 'designPressure', 'pressureUnit', 'shellMaterial', 'jointEfficiency', 'corrosionAllowance'];
     if (g0Triggers.includes(changedFieldName)) {
        const autoG0 = calculateAutoG0(finalInputs, plateMaterials);
@@ -371,7 +387,6 @@ const App: React.FC = () => {
        finalInputs.g1 = Math.ceil(autoG0 * 1.3 / 3 + autoG0);
     }
 
-    // PCC-1 Values triggers
     if (changedFieldName === 'boltMaterial' || changedFieldName === 'gasketType') {
       const mat = boltMaterials.find(m => m.id === finalInputs.boltMaterial);
       if (mat && mat.minYield) {
@@ -405,7 +420,7 @@ const App: React.FC = () => {
   };
 
   const handleOptimize = () => {
-    const optimizedTargetInputs = { ...inputs, useManualOverride: false, actualBCD: 0, actualOD: 0, manualSeatingID: 0, manualSeatingOD: 0 };
+    const optimizedTargetInputs = { ...inputs, useManualOverride: false, actualBCD: 0, actualOD: 0, manualSeatingID: 0, manualSeatingOD: 0, gasketPreference: undefined };
     let bestSize = optimizedTargetInputs.boltSize;
     let bestCount = optimizedTargetInputs.boltCount;
     let minRequiredLoad = Infinity; 
@@ -431,7 +446,7 @@ const App: React.FC = () => {
     }
 
     if (found) {
-      setInputs(prev => ({ ...prev, boltSize: bestSize, boltCount: bestCount, useManualOverride: false, actualBCD: 0, actualOD: 0, manualSeatingID: 0, manualSeatingOD: 0 }));
+      setInputs(prev => ({ ...prev, boltSize: bestSize, boltCount: bestCount, useManualOverride: false, actualBCD: 0, actualOD: 0, manualSeatingID: 0, manualSeatingOD: 0, gasketPreference: undefined }));
       alert(`Optimization Completed!\nBolt Size: ${bestSize}"\nBolt Count: ${bestCount} EA`);
     } else {
       alert(`No valid configuration found.`);
@@ -441,7 +456,7 @@ const App: React.FC = () => {
   const handleResetAndOptimize = () => {
     setIsFixedSizeSearch(false);
     const autoG0 = calculateAutoG0(inputs, plateMaterials);
-    const updatedInputs = { ...inputs, g0: autoG0, g1: Math.ceil(autoG0 * 1.3 / 3 + autoG0), useManualOverride: false, actualBCD: 0, actualOD: 0, manualSeatingID: 0, manualSeatingOD: 0 };
+    const updatedInputs = { ...inputs, g0: autoG0, g1: Math.ceil(autoG0 * 1.3 / 3 + autoG0), useManualOverride: false, actualBCD: 0, actualOD: 0, manualSeatingID: 0, manualSeatingOD: 0, gasketPreference: undefined };
     setInputs(updatedInputs);
     handleOptimize();
   };

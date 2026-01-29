@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { FlangeInputs, CalculationResults, BoltMaterial, ShellMaterial, TemaBoltInfo, GasketType, RingStandard } from '../types';
 
@@ -157,8 +158,15 @@ export const Calculator: React.FC<Props> = ({ inputs, onInputChange, onOptimize,
     onInputChange(nextInputs, 'usePcc1Check');
   };
 
-  const applyGasketBounds = (id: number, od: number) => {
-    // This updates the local buffer, then user clicks START to apply
+  const applyGasketBounds = (id: number, od: number, preference: 'bcd' | 'shell') => {
+    const nextInputs = {
+      ...inputs,
+      gasketPreference: preference,
+      manualSeatingID: parseFloat(id.toFixed(2)),
+      manualSeatingOD: parseFloat(od.toFixed(2))
+    };
+    onInputChange(nextInputs, 'apply_gasket_logic');
+    
     setLocalManualValues(prev => ({
       ...prev,
       manualSeatingID: parseFloat(id.toFixed(2)),
@@ -175,8 +183,8 @@ export const Calculator: React.FC<Props> = ({ inputs, onInputChange, onOptimize,
       outerRingWidthManual: 0,
       hasInnerRing: true,
       hasOuterRing: true,
-      // PRESERVE Manual Activation State as per user request
       useManualOverride: inputs.useManualOverride,
+      gasketPreference: undefined, // undefined로 초기화하여 다시 "더 큰 값 선택(Auto-Max)" 로직 적용
       manualM: 0,
       manualY: 0,
       manualPassM: 0,
@@ -208,15 +216,19 @@ export const Calculator: React.FC<Props> = ({ inputs, onInputChange, onOptimize,
   const s1OD = results.maxRaisedFace; 
   const s2OD = inputs.insideDia + (2 * (inputs.shellGapA !== undefined ? inputs.shellGapA : 3.0)) + (2 * currentIR) + (2 * inputs.gasketSeatingWidth); 
 
+  // 활성화 상태 하이라이트 로직 수정: gasketPreference가 명시되지 않은 자동 모드에서도 실제 결과값(results.seatingOD)과 일치하는 쪽이 하이라이트됨.
+  // "더 큰 값이 먼저 활성화되게" 수정된 App.tsx의 로직과 시각적으로 동기화됨.
   let isSug1Active = false;
   let isSug2Active = false;
 
-  if (localManualValues.manualSeatingOD !== 0) {
+  if (inputs.useManualOverride) {
+    // 수동 모드일 때는 현재 수동 입력값이 어느 쪽 제안과 일치하는지 표시
     isSug1Active = Math.abs(localManualValues.manualSeatingOD - s1OD) < 0.1;
     isSug2Active = Math.abs(localManualValues.manualSeatingOD - s2OD) < 0.1;
   } else {
-    if (s1OD >= s2OD) isSug1Active = true;
-    else isSug2Active = true;
+    // 자동 모드일 때는 실제 계산에 적용된 OD가 어느 쪽인지에 따라 하이라이트 (더 큰 쪽이 자동 선택됨)
+    isSug1Active = Math.abs(results.seatingOD - s1OD) < 0.1;
+    isSug2Active = Math.abs(results.seatingOD - s2OD) < 0.1 && !isSug1Active; // 두 값이 같을 경우 1번 우선 표시
   }
 
   const filteredBolts = temaBoltData.filter(b => b.size >= 0.75);
@@ -653,7 +665,7 @@ export const Calculator: React.FC<Props> = ({ inputs, onInputChange, onOptimize,
           </h3>
           <div className="grid grid-cols-1 gap-3 mb-2">
             <button 
-              onClick={() => applyGasketBounds(results.maxRaisedFace - (inputs.gasketSeatingWidth * 2), results.maxRaisedFace)}
+              onClick={() => applyGasketBounds(results.maxRaisedFace - (inputs.gasketSeatingWidth * 2), results.maxRaisedFace, 'bcd')}
               className={`group p-2.5 border rounded-lg text-left transition-all shadow-md active:scale-[0.98] ${
                 isSug1Active 
                   ? 'bg-indigo-800 border-indigo-900 text-white ring-4 ring-indigo-200' 
@@ -677,7 +689,7 @@ export const Calculator: React.FC<Props> = ({ inputs, onInputChange, onOptimize,
             <button 
               onClick={() => {
                  const currentS2OD = inputs.insideDia + (2 * (inputs.shellGapA !== undefined ? inputs.shellGapA : 3.0)) + (2 * currentIR) + (2 * inputs.gasketSeatingWidth);
-                 applyGasketBounds(currentS2OD - (inputs.gasketSeatingWidth * 2), currentS2OD);
+                 applyGasketBounds(currentS2OD - (inputs.gasketSeatingWidth * 2), currentS2OD, 'shell');
               }}
               className={`group p-2.5 border rounded-lg text-left transition-all shadow-md active:scale-[0.98] ${
                 isSug2Active 
