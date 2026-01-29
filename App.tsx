@@ -137,9 +137,9 @@ const initialInputs: FlangeInputs = {
   sgT: 200,
   sgMinS: 140,
   sgMinO: 97,
-  sgMax: 275,
-  sbMax: 200,
-  sbMin: 100,
+  sgMax: 0, // Initial Spiral-wound sgMax is Note b (often 0 or unspecified in standard)
+  sbMax: 507.5, // 70% of 725 yield
+  sbMin: 290.0, // 40% of 725 yield
   sfMax: 150,
   phiFMax: 0.32,
   phiGMax: 1,
@@ -343,6 +343,30 @@ const App: React.FC = () => {
        const autoG0 = calculateAutoG0(finalInputs, plateMaterials);
        finalInputs.g0 = autoG0;
        finalInputs.g1 = Math.ceil(autoG0 * 1.3 / 3 + autoG0);
+    }
+
+    // PCC-1 Values triggers
+    if (changedFieldName === 'boltMaterial' || changedFieldName === 'gasketType') {
+      const mat = boltMaterials.find(m => m.id === finalInputs.boltMaterial);
+      if (mat && mat.minYield) {
+        finalInputs.sbMax = Math.round(mat.minYield * 0.7 * 10) / 10;
+        finalInputs.sbMin = Math.round(mat.minYield * 0.4 * 10) / 10;
+      }
+      
+      const gTypeLower = finalInputs.gasketType.toLowerCase();
+      if (gTypeLower.includes('grooved')) {
+        finalInputs.sgMax = 380;
+        finalInputs.sgMinS = 140;
+        finalInputs.sgMinO = 97;
+      } else if (gTypeLower.includes('corruga')) {
+        finalInputs.sgMax = 275;
+        finalInputs.sgMinS = 140;
+        finalInputs.sgMinO = 97;
+      } else if (gTypeLower.includes('spiral')) {
+        finalInputs.sgMax = 0;
+        finalInputs.sgMinS = 140;
+        finalInputs.sgMinO = 97;
+      }
     }
 
     if (g0Triggers.includes(changedFieldName)) {
