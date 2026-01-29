@@ -90,7 +90,6 @@ const calculateAutoG0 = (currentInputs: Partial<FlangeInputs>, plateMaterials: S
   const pMpa = toMpa(press, pressU);
   
   const denom = (shellStress * jointEff - 0.6 * pMpa);
-  // g0 = ((P * (ID/2 + Corr)) / (S*E - 0.6*P)) + Corr
   const autoG0 = (pMpa * (id / 2 + corr)) / (denom > 0 ? denom : 1) + corr;
   return Math.ceil(autoG0);
 };
@@ -137,9 +136,9 @@ const initialInputs: FlangeInputs = {
   sgT: 200,
   sgMinS: 140,
   sgMinO: 97,
-  sgMax: 0, // Initial Spiral-wound sgMax is Note b (often 0 or unspecified in standard)
-  sbMax: 507.5, // 70% of 725 yield
-  sbMin: 290.0, // 40% of 725 yield
+  sgMax: 0, 
+  sbMax: 507.5, 
+  sbMin: 290.0, 
   sfMax: 150,
   phiFMax: 0.32,
   phiGMax: 1,
@@ -180,14 +179,19 @@ const App: React.FC = () => {
 
   const [inputs, setInputs] = useState<FlangeInputs>(() => {
     const saved = localStorage.getItem('flange_genie_last_inputs');
+    const savedLegend = localStorage.getItem('flange_genie_custom_legend');
+    let baseInputs = initialInputs;
     if (saved) {
       try {
-        return JSON.parse(saved);
+        baseInputs = JSON.parse(saved);
       } catch (e) {
         console.error("Failed to parse saved inputs", e);
       }
     }
-    return initialInputs;
+    if (savedLegend) {
+      baseInputs.customLegendUrl = savedLegend;
+    }
+    return baseInputs;
   });
   
   const [isFixedSizeSearch, setIsFixedSizeSearch] = useState(false);
@@ -195,8 +199,39 @@ const App: React.FC = () => {
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
   useEffect(() => {
-    localStorage.setItem('flange_genie_last_inputs', JSON.stringify(inputs));
+    // Separate legend handling to prevent object size issues and ensure persistence
+    const { customLegendUrl, ...otherInputs } = inputs;
+    localStorage.setItem('flange_genie_last_inputs', JSON.stringify(otherInputs));
+    if (customLegendUrl) {
+      localStorage.setItem('flange_genie_custom_legend', customLegendUrl);
+    } else {
+      localStorage.removeItem('flange_genie_custom_legend');
+    }
   }, [inputs]);
+
+  useEffect(() => {
+    localStorage.setItem('flange_genie_bolt_materials', JSON.stringify(boltMaterials));
+  }, [boltMaterials]);
+
+  useEffect(() => {
+    localStorage.setItem('flange_genie_plate_materials', JSON.stringify(plateMaterials));
+  }, [plateMaterials]);
+
+  useEffect(() => {
+    localStorage.setItem('flange_genie_tema_bolt_data', JSON.stringify(temaBoltData));
+  }, [temaBoltData]);
+
+  useEffect(() => {
+    localStorage.setItem('flange_genie_tensioning_data', JSON.stringify(tensioningData));
+  }, [tensioningData]);
+
+  useEffect(() => {
+    localStorage.setItem('flange_genie_gasket_types', JSON.stringify(gasketTypes));
+  }, [gasketTypes]);
+
+  useEffect(() => {
+    localStorage.setItem('flange_genie_ring_standards', JSON.stringify(ringStandards));
+  }, [ringStandards]);
 
   const calculateFullResults = useCallback((currentInputs: FlangeInputs): CalculationResults => {
     const boltData = temaBoltData.find(b => b.size === currentInputs.boltSize) || temaBoltData[0];
