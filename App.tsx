@@ -180,18 +180,22 @@ const App: React.FC = () => {
   const [inputs, setInputs] = useState<FlangeInputs>(() => {
     const saved = localStorage.getItem('flange_genie_last_inputs');
     const savedLegend = localStorage.getItem('flange_genie_custom_legend');
-    let baseInputs = initialInputs;
+    
+    let base = initialInputs;
     if (saved) {
       try {
-        baseInputs = JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        // Merge to ensure missing keys from old storage are populated by defaults
+        base = { ...initialInputs, ...parsed };
       } catch (e) {
         console.error("Failed to parse saved inputs", e);
       }
     }
+    
     if (savedLegend) {
-      baseInputs.customLegendUrl = savedLegend;
+      base = { ...base, customLegendUrl: savedLegend };
     }
-    return baseInputs;
+    return base;
   });
   
   const [isFixedSizeSearch, setIsFixedSizeSearch] = useState<boolean>(() => {
@@ -471,7 +475,8 @@ const App: React.FC = () => {
   };
 
   const handleGlobalReset = () => {
-    setInputs(prev => ({ ...initialInputs, customLegendUrl: prev.customLegendUrl }));
+    const reset = { ...initialInputs, customLegendUrl: inputs.customLegendUrl };
+    setInputs(reset);
     setIsFixedSizeSearch(false);
     setEditingRecordId(null);
   };
