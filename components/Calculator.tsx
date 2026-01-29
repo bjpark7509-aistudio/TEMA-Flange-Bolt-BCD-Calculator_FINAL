@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { FlangeInputs, CalculationResults, BoltMaterial, ShellMaterial, TemaBoltInfo, GasketType, RingStandard } from '../types';
 
@@ -176,7 +175,8 @@ export const Calculator: React.FC<Props> = ({ inputs, onInputChange, onOptimize,
       outerRingWidthManual: 0,
       hasInnerRing: true,
       hasOuterRing: true,
-      useManualOverride: false,
+      // PRESERVE Manual Activation State as per user request
+      useManualOverride: inputs.useManualOverride,
       manualM: 0,
       manualY: 0,
       manualPassM: 0,

@@ -147,7 +147,7 @@ const initialInputs: FlangeInputs = {
 };
 
 const App: React.FC = () => {
-  // Material data remains persistent to keep user-defined libraries
+  // Library data (Materials, standards) remains persistent
   const [boltMaterials, setBoltMaterials] = useState<BoltMaterial[]>(() => {
     const saved = localStorage.getItem('flange_genie_bolt_materials');
     return saved ? JSON.parse(saved) : INITIAL_BOLT_MATERIALS;
@@ -178,7 +178,7 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : INITIAL_RING_STANDARDS;
   });
 
-  // Main Inputs reset to defaults on reopen, except for the Legend image
+  // Project data (Inputs, Records) resets on load, preserving only the custom legend
   const [inputs, setInputs] = useState<FlangeInputs>(() => {
     const savedLegend = localStorage.getItem('flange_genie_custom_legend');
     if (savedLegend) {
@@ -187,15 +187,11 @@ const App: React.FC = () => {
     return initialInputs;
   });
   
-  // Search toggle resets on reload
   const [isFixedSizeSearch, setIsFixedSizeSearch] = useState<boolean>(false);
-
-  // Calculation Summary List resets on reload
   const [savedRecords, setSavedRecords] = useState<SavedRecord[]>([]);
-
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
-  // Only the custom legend is saved across reloads to keep the "screen layout" consistent
+  // Persistence: Only libraries and custom legend are saved
   useEffect(() => {
     if (inputs.customLegendUrl) {
       localStorage.setItem('flange_genie_custom_legend', inputs.customLegendUrl);
@@ -204,7 +200,6 @@ const App: React.FC = () => {
     }
   }, [inputs.customLegendUrl]);
 
-  // Sync background library data to local storage
   useEffect(() => {
     localStorage.setItem('flange_genie_bolt_materials', JSON.stringify(boltMaterials));
   }, [boltMaterials]);
