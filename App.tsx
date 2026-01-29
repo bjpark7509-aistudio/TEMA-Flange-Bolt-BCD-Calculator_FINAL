@@ -194,12 +194,19 @@ const App: React.FC = () => {
     return baseInputs;
   });
   
-  const [isFixedSizeSearch, setIsFixedSizeSearch] = useState(false);
-  const [savedRecords, setSavedRecords] = useState<SavedRecord[]>([]);
+  const [isFixedSizeSearch, setIsFixedSizeSearch] = useState<boolean>(() => {
+    const saved = localStorage.getItem('flange_genie_fixed_search');
+    return saved ? JSON.parse(saved) : false;
+  });
+
+  const [savedRecords, setSavedRecords] = useState<SavedRecord[]>(() => {
+    const saved = localStorage.getItem('flange_genie_saved_records');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Separate legend handling to prevent object size issues and ensure persistence
     const { customLegendUrl, ...otherInputs } = inputs;
     localStorage.setItem('flange_genie_last_inputs', JSON.stringify(otherInputs));
     if (customLegendUrl) {
@@ -232,6 +239,14 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('flange_genie_ring_standards', JSON.stringify(ringStandards));
   }, [ringStandards]);
+
+  useEffect(() => {
+    localStorage.setItem('flange_genie_saved_records', JSON.stringify(savedRecords));
+  }, [savedRecords]);
+
+  useEffect(() => {
+    localStorage.setItem('flange_genie_fixed_search', JSON.stringify(isFixedSizeSearch));
+  }, [isFixedSizeSearch]);
 
   const calculateFullResults = useCallback((currentInputs: FlangeInputs): CalculationResults => {
     const boltData = temaBoltData.find(b => b.size === currentInputs.boltSize) || temaBoltData[0];
