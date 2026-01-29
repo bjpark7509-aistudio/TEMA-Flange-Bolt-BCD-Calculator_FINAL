@@ -82,7 +82,7 @@ const calculateAutoG0 = (currentInputs: Partial<FlangeInputs>, plateMaterials: S
   const tempU = currentInputs.tempUnit || '°C';
   const press = currentInputs.designPressure ?? 1.0;
   const pressU = currentInputs.pressureUnit || 'MPa';
-  const id = currentInputs.insideDia ?? 300;
+  const id = currentInputs.insideDia ?? 1000;
   const corr = currentInputs.corrosionAllowance ?? 0;
   const jointEff = currentInputs.jointEfficiency ?? 1.0;
 
@@ -95,13 +95,13 @@ const calculateAutoG0 = (currentInputs: Partial<FlangeInputs>, plateMaterials: S
 };
 
 const initialInputs: FlangeInputs = {
-  itemNo: '',
-  partName: '',
+  itemNo: 'GEN-001',
+  partName: 'CHANNEL SIDE',
   boltSize: 0.75,
   boltCount: 48,
   insideDia: 1000,
   g0: 3, 
-  g1: 5, // roundup(3 * 1.3 / 3 + 3, 0) = 5
+  g1: 5, 
   cClearance: 2.5,
   shellGapA: 3.0,
   gasketSeatingWidth: 15,
@@ -191,7 +191,6 @@ const App: React.FC = () => {
   
   const [isFixedSizeSearch, setIsFixedSizeSearch] = useState(false);
   
-  // OPEN 시 항상 비어있는 상태로 시작하도록 빈 배열로 초기화
   const [savedRecords, setSavedRecords] = useState<SavedRecord[]>([]);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
@@ -244,7 +243,6 @@ const App: React.FC = () => {
     const autoSeatingOD = Math.max(autoSeatingOD_BCD, autoSeatingOD_Shell);
     const autoSeatingID = autoSeatingOD - (2 * currentInputs.gasketSeatingWidth);
 
-    // Only apply manual values if useManualOverride is true
     const seatingID = (currentInputs.useManualOverride && currentInputs.manualSeatingID !== 0) ? currentInputs.manualSeatingID : autoSeatingID;
     const seatingOD = (currentInputs.useManualOverride && currentInputs.manualSeatingOD !== 0) ? currentInputs.manualSeatingOD : autoSeatingOD;
     
@@ -255,7 +253,6 @@ const App: React.FC = () => {
     const bcdTema = Math.max(bcdMethod1, bcdMethod2, bcdMethod3);
     const selectedBcdSource = bcdTema === bcdMethod1 ? 1 : (bcdTema === bcdMethod2 ? 2 : 3);
 
-    // Only apply manual BCD/OD if useManualOverride is true
     const finalBCD = (currentInputs.useManualOverride && currentInputs.actualBCD !== 0) ? currentInputs.actualBCD : bcdTema;
     
     const edgeDistance = boltData.E * 25.4;
@@ -263,7 +260,6 @@ const App: React.FC = () => {
     const finalOD = (currentInputs.useManualOverride && currentInputs.actualOD !== 0) ? currentInputs.actualOD : odTema;
 
     const gType = gasketTypes.find(g => g.id === currentInputs.gasketType) || gasketTypes[0];
-    // Only apply manual factors if useManualOverride is true
     const gasketM = (currentInputs.useManualOverride && currentInputs.manualM !== 0) ? currentInputs.manualM : gType.m;
     const gasketY = (currentInputs.useManualOverride && currentInputs.manualY !== 0) ? currentInputs.manualY : gType.y;
 
@@ -275,7 +271,6 @@ const App: React.FC = () => {
     const boltSpacingMin = effectiveBMin * 25.4;
     const maxBoltSpacing = WHC_MAX_PITCH_TABLE[currentInputs.boltSize] || (2.5 * currentInputs.boltSize * 25.4 + 12);
 
-    // Basic Width (b₀) depends on Contact N: (Gasket Seal OD - Gasket Seal ID) / 2
     const nWidth = (seatingOD - seatingID) / 2;
     let b0Width = nWidth / 2;
     if (currentInputs.facingSketch.startsWith('1a') || currentInputs.facingSketch.startsWith('1b')) {
@@ -305,7 +300,6 @@ const App: React.FC = () => {
     const reqAreaSeating = wm2 / (ambientAllowableStress || 1);
     const requiredBoltArea = Math.max(reqAreaOperating, reqAreaSeating);
 
-    // Hub calculation process
     const shellMat = plateMaterials.find(m => m.id === currentInputs.shellMaterial) || plateMaterials[0];
     const shellStress = interpolateStress(toCelsius(currentInputs.designTemp, currentInputs.tempUnit), shellMat.stresses, PLATE_TEMP_STEPS);
 
@@ -460,7 +454,7 @@ const App: React.FC = () => {
   const handleInputChange = (updatedInputs: FlangeInputs, changedFieldName: string) => {
     let finalInputs = { ...updatedInputs };
 
-    const g0Triggers = ['insideDia', 'designTemp', 'tempUnit', 'designPressure', 'pressureUnit', 'shellMaterial', 'boltMaterial', 'gasketType', 'passGasketType', 'facingSketch', 'jointEfficiency', 'corrosionAllowance'];
+    const g0Triggers = ['insideDia', 'designTemp', 'tempUnit', 'designPressure', 'pressureUnit', 'shellMaterial', 'jointEfficiency', 'corrosionAllowance'];
     if (g0Triggers.includes(changedFieldName)) {
        const autoG0 = calculateAutoG0(finalInputs, plateMaterials);
        finalInputs.g0 = autoG0;
