@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { CalculationResults, FlangeInputs, BoltMaterial, ShellMaterial, TemaBoltInfo, TensioningInfo, GasketType, RingStandard } from '../types';
 import { BOLT_TEMP_STEPS, PLATE_TEMP_STEPS, API660_PCC1_STRESS_TABLE } from '../constants';
@@ -27,6 +26,9 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
   const [showBackData, setShowBackData] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>('current');
   
+  // State to track original ID during editing to preserve row position
+  const [editingId, setEditingId] = useState<string | null>(null);
+
   // State for Material CRUD
   const [isEditingMaterial, setIsEditingMaterial] = useState<boolean>(false);
   const [editingMaterial, setEditingMaterial] = useState<BoltMaterial | null>(null);
@@ -182,6 +184,7 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
 
   // Bolt Material CRUD Handlers
   const handleAddNewBoltMaterial = () => {
+    setEditingId(null);
     const newMat: BoltMaterial = {
       id: "New Material " + (boltMaterials.length + 1),
       minTensile: 0,
@@ -193,6 +196,7 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
   };
 
   const handleEditBoltMaterial = (mat: BoltMaterial) => {
+    setEditingId(mat.id);
     setEditingMaterial({ ...mat, stresses: [...mat.stresses] });
     setIsEditingMaterial(true);
   };
@@ -214,15 +218,21 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
       return;
     }
     setBoltMaterials(prev => {
-      const filtered = prev.filter(m => m.id !== editingMaterial.id);
-      return [...filtered, editingMaterial];
+      // 제자리 업데이트를 위해 map 사용
+      if (editingId) {
+        return prev.map(m => m.id === editingId ? editingMaterial : m);
+      }
+      // 신규 추가인 경우 맨 뒤에 추가
+      return [...prev, editingMaterial];
     });
     setIsEditingMaterial(false);
     setEditingMaterial(null);
+    setEditingId(null);
   };
 
   // Plate Material CRUD Handlers
   const handleAddNewPlateMaterial = () => {
+    setEditingId(null);
     const newMat: ShellMaterial = {
       id: "New Plate Material " + (plateMaterials.length + 1),
       minTensile: 0,
@@ -234,6 +244,7 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
   };
 
   const handleEditPlateMaterial = (mat: ShellMaterial) => {
+    setEditingId(mat.id);
     setEditingPlateMaterial({ ...mat, stresses: [...mat.stresses] });
     setIsEditingPlateMaterial(true);
   };
@@ -255,11 +266,16 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
       return;
     }
     setPlateMaterials(prev => {
-      const filtered = prev.filter(m => m.id !== editingPlateMaterial.id);
-      return [...filtered, editingPlateMaterial];
+      // 제자리 업데이트를 위해 map 사용
+      if (editingId) {
+        return prev.map(m => m.id === editingId ? editingPlateMaterial : m);
+      }
+      // 신규 추가인 경우 맨 뒤에 추가
+      return [...prev, editingPlateMaterial];
     });
     setIsEditingPlateMaterial(false);
     setEditingPlateMaterial(null);
+    setEditingId(null);
   };
 
   // --- Bolt Spec CRUD (Table D-5) Handlers ---

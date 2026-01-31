@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Calculator } from './components/Calculator';
 import { ResultTable } from './components/ResultTable';
@@ -146,7 +145,6 @@ const initialInputs: FlangeInputs = {
   phiGMax: 1,
   g: 0.7,
   passPartAreaReduction: 50,
-  // gasketPreference 초기값을 undefined로 두어 Math.max(Auto-Max) 로직이 먼저 실행되게 함
   gasketPreference: undefined,
 };
 
@@ -181,7 +179,18 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : INITIAL_RING_STANDARDS;
   });
 
+  // Reopen Logic: Load entire inputs state including custom legend from localStorage
   const [inputs, setInputs] = useState<FlangeInputs>(() => {
+    const savedInputs = localStorage.getItem('flange_genie_current_inputs');
+    if (savedInputs) {
+      try {
+        const parsed = JSON.parse(savedInputs);
+        return { ...initialInputs, ...parsed };
+      } catch (e) {
+        console.error("Failed to parse saved inputs", e);
+      }
+    }
+    // Fallback to legend-only if full inputs not found
     const savedLegend = localStorage.getItem('flange_genie_custom_legend');
     if (savedLegend) {
       return { ...initialInputs, customLegendUrl: savedLegend };
@@ -190,16 +199,31 @@ const App: React.FC = () => {
   });
   
   const [isFixedSizeSearch, setIsFixedSizeSearch] = useState<boolean>(false);
-  const [savedRecords, setSavedRecords] = useState<SavedRecord[]>([]);
+  const [savedRecords, setSavedRecords] = useState<SavedRecord[]>(() => {
+    const saved = localStorage.getItem('flange_genie_saved_records');
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Failed to parse saved records", e);
+      return [];
+    }
+  });
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
+  // Auto-save logic for inputs and legend
   useEffect(() => {
+    localStorage.setItem('flange_genie_current_inputs', JSON.stringify(inputs));
     if (inputs.customLegendUrl) {
       localStorage.setItem('flange_genie_custom_legend', inputs.customLegendUrl);
     } else {
       localStorage.removeItem('flange_genie_custom_legend');
     }
-  }, [inputs.customLegendUrl]);
+  }, [inputs]);
+
+  // Auto-save logic for saved summary list
+  useEffect(() => {
+    localStorage.setItem('flange_genie_saved_records', JSON.stringify(savedRecords));
+  }, [savedRecords]);
 
   useEffect(() => {
     localStorage.setItem('flange_genie_bolt_materials', JSON.stringify(boltMaterials));
@@ -249,14 +273,12 @@ const App: React.FC = () => {
     const autoSeatingOD_BCD = baseBCDForAutoGasket - roundedHoleSize - (2 * effectiveC) - (2 * bConst) - (2 * outerRingWidth);
     const autoSeatingOD_Shell = currentInputs.insideDia + (2 * shellGapA) + (2 * innerRingWidth) + (2 * currentInputs.gasketSeatingWidth);
 
-    // Gasket Preference가 명시되지 않은 경우, 더 큰 값이 먼저 활성화되도록 로직 수정
     let autoSeatingOD = 0;
     if (currentInputs.gasketPreference === 'shell') {
       autoSeatingOD = autoSeatingOD_Shell;
     } else if (currentInputs.gasketPreference === 'bcd') {
       autoSeatingOD = autoSeatingOD_BCD;
     } else {
-      // 자동 선택 모드: 두 값 중 더 큰 값을 선택 (큰 값이 먼저 활성화됨)
       autoSeatingOD = Math.max(autoSeatingOD_BCD, autoSeatingOD_Shell);
     }
     
@@ -374,7 +396,6 @@ const App: React.FC = () => {
   const handleInputChange = (updatedInputs: FlangeInputs, changedFieldName: string) => {
     let finalInputs = { ...updatedInputs };
 
-    // 지오메트리 핵심 변경 시 Logic Preference 초기화 -> "큰 값이 먼저 활성화되게" 보장
     const geometryTriggers = ['insideDia', 'boltCount', 'boltSize', 'g0', 'cClearance', 'shellGapA', 'gasketSeatingWidth'];
     if (geometryTriggers.includes(changedFieldName)) {
       finalInputs.gasketPreference = undefined;
@@ -456,12 +477,14 @@ const App: React.FC = () => {
   const handleResetAndOptimize = () => {
     setIsFixedSizeSearch(false);
     const autoG0 = calculateAutoG0(inputs, plateMaterials);
+    // Preserve custom legend during reset
     const updatedInputs = { ...inputs, g0: autoG0, g1: Math.ceil(autoG0 * 1.3 / 3 + autoG0), useManualOverride: false, actualBCD: 0, actualOD: 0, manualSeatingID: 0, manualSeatingOD: 0, gasketPreference: undefined };
     setInputs(updatedInputs);
     handleOptimize();
   };
 
   const handleGlobalReset = () => {
+    // Preserve custom legend during global reset
     const reset = { ...initialInputs, customLegendUrl: inputs.customLegendUrl };
     setInputs(reset);
     setIsFixedSizeSearch(false);
@@ -536,7 +559,13 @@ const App: React.FC = () => {
       reader.onload = (event) => {
         try {
           const parsedData = JSON.parse(event.target?.result as string);
-          if (parsedData.inputs) setInputs(parsedData.inputs);
+          if (parsedData.inputs) {
+            // Merge loaded inputs with existing custom legend if loaded file lacks one
+            setInputs(prev => ({
+              ...parsedData.inputs,
+              customLegendUrl: parsedData.inputs.customLegendUrl || prev.customLegendUrl
+            }));
+          }
           if (parsedData.savedRecords) setSavedRecords(parsedData.savedRecords);
         } catch (error) { console.error(error); }
       };
@@ -589,7 +618,7 @@ const App: React.FC = () => {
                 <div className="p-8 pb-4 flex justify-between items-center relative z-10">
                   <div className="flex items-center gap-3">
                     <div className="w-6 h-6 bg-sky-600 rounded flex items-center justify-center"><i className="fa-solid fa-chart-simple text-white text-[10px]"></i></div>
-                    <h2 className="text-sm font-black text-slate-800 leading-tight uppercase tracking-tight">FINAL<br/>REPORT</h2>
+                    <h2 className="text-sm font-black text-slate-800 leading-tight uppercase tracking-tight">REPORT</h2>
                   </div>
                   <div className="flex gap-2">
                     <button onClick={handleSaveToList} className="bg-[#e12e2e] hover:bg-red-700 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg flex items-center gap-2">
