@@ -260,7 +260,8 @@ const App: React.FC = () => {
     const shellGapA = currentInputs.shellGapA !== undefined ? currentInputs.shellGapA : 3.0;
     const bConst = 1.5; 
 
-    const roundedHoleSize = Math.ceil(boltData.holeSize);
+    // Remove Math.ceil to keep original precision for Hole Size
+    const boltHoleSizeVal = boltData.holeSize;
     const effectiveBMin = (currentInputs.useHydraulicTensioning && tensionData) 
       ? Math.max(boltData.B_min, tensionData.B_ten) 
       : boltData.B_min;
@@ -270,7 +271,7 @@ const App: React.FC = () => {
     const bcdMethod2 = Math.ceil(currentInputs.insideDia + (2 * currentInputs.g1) + (2 * radialDistance));
 
     const baseBCDForAutoGasket = Math.max(bcdMethod1, bcdMethod2);
-    const autoSeatingOD_BCD = baseBCDForAutoGasket - roundedHoleSize - (2 * effectiveC) - (2 * bConst) - (2 * outerRingWidth);
+    const autoSeatingOD_BCD = baseBCDForAutoGasket - boltHoleSizeVal - (2 * effectiveC) - (2 * bConst) - (2 * outerRingWidth);
     const autoSeatingOD_Shell = currentInputs.insideDia + (2 * shellGapA) + (2 * innerRingWidth) + (2 * currentInputs.gasketSeatingWidth);
 
     let autoSeatingOD = 0;
@@ -290,7 +291,7 @@ const App: React.FC = () => {
     const gasketOD = seatingOD + (currentInputs.hasOuterRing ? (2 * outerRingWidth) : 0);
     const gasketID = seatingID - (currentInputs.hasInnerRing ? (2 * innerRingWidth) : 0);
 
-    const bcdMethod3 = gasketOD + (2 * bConst) + (2 * effectiveC) + roundedHoleSize;
+    const bcdMethod3 = gasketOD + (2 * bConst) + (2 * effectiveC) + boltHoleSizeVal;
     const bcdTema = Math.max(bcdMethod1, bcdMethod2, bcdMethod3);
     const selectedBcdSource = bcdTema === bcdMethod1 ? 1 : (bcdTema === bcdMethod2 ? 2 : 3);
 
@@ -351,8 +352,8 @@ const App: React.FC = () => {
       radialDistance, edgeDistance, effectiveC, shellGapA,
       gasketSeatingWidth: nWidth, innerRingWidth, outerRingWidth,
       gasketID, seatingID, seatingOD, gasketOD, finalBCD, finalOD,
-      maxRaisedFace: finalBCD - roundedHoleSize - (2 * effectiveC) - (2 * bConst) - (2 * outerRingWidth), 
-      boltHoleSize: roundedHoleSize,
+      maxRaisedFace: finalBCD - boltHoleSizeVal - (2 * effectiveC) - (2 * bConst) - (2 * outerRingWidth), 
+      boltHoleSize: boltHoleSizeVal,
       singleBoltArea: boltData.tensileArea, totalBoltArea,
       requiredBoltArea,
       totalBoltLoadAmbient: totalBoltArea * ambientAllowableStress,
@@ -386,7 +387,8 @@ const App: React.FC = () => {
       active: inputs.usePcc1Check,
       safe: (sbSelFinal >= step5Threshold - 0.001) && (sbSelFinal >= step6Threshold - 0.001) && 
             (inputs.sgMax === 0 ? true : (sbSelFinal <= step7Threshold + 0.001)) && 
-            (inputs.phiFMax === 0 ? true : (sbSelFinal <= step8Threshold + 0.001))
+            (inputs.phiFMax === 0 ? true : (sbSelFinal <= step8Threshold + 0.001)),
+      sbSelFinal
     };
   }, [inputs, results]);
 
@@ -635,27 +637,48 @@ const App: React.FC = () => {
                 </div>
                 <div className="bg-[#0f172a] mx-3 mb-3 p-8 rounded-[2rem] border border-slate-800 shadow-2xl flex flex-col text-white relative">
                   <div className="flex items-center gap-4 mb-6">
-                    <div className="h-[1px] flex-1 bg-slate-800"></div>
+                    <div className="h-[1px] flex-1 bg-white/10"></div>
                     <span className="text-[8px] font-black text-slate-500 tracking-[0.3em] uppercase">Load Analysis</span>
-                    <div className="h-[1px] flex-1 bg-slate-800"></div>
+                    <div className="h-[1px] flex-1 bg-white/10"></div>
                   </div>
-                  <div className={`p-6 rounded-[1.5rem] border mb-4 flex items-center gap-6 ${isSafe ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg ${isSafe ? 'bg-[#00c58d]' : 'bg-[#f83a3a]'}`}><i className={`fa-solid ${isSafe ? 'fa-check' : 'fa-xmark'} text-white text-xl`}></i></div>
-                    <div className="flex-1 grid grid-cols-2 gap-2">
-                      <div><div className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Status</div><div className={`text-sm font-black uppercase ${isSafe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>{isSafe ? 'ACCEPTABLE' : 'RECHECK LOAD'}</div></div>
-                      <div className="text-right"><div className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Margin</div><div className={`text-xl font-black ${isSafe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>{marginPercent > 0 ? '+' : ''}{marginPercent.toFixed(1)}%</div></div>
+                  
+                  {/* Bolt Status Card */}
+                  <div className={`p-5 rounded-[1.5rem] border flex items-center gap-6 mb-4 ${isSafe ? 'border-white/5 bg-white/5' : 'border-red-500/20 bg-red-500/5'}`}>
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shrink-0 ${isSafe ? 'bg-[#00c58d]' : 'bg-[#f83a3a]'}`}>
+                      <i className={`fa-solid ${isSafe ? 'fa-check' : 'fa-xmark'} text-white text-lg`}></i>
+                    </div>
+                    <div className="flex-1 grid grid-cols-2 gap-4">
+                      <div className="space-y-0.5">
+                        <div className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">STATUS</div>
+                        <div className={`text-sm font-black uppercase tracking-tight ${isSafe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>
+                          {isSafe ? 'ACCEPTABLE' : 'RECHECK LOAD'}
+                        </div>
+                      </div>
+                      <div className="space-y-0.5 text-right">
+                        <div className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">MARGIN</div>
+                        <div className={`text-lg font-black tracking-tighter ${isSafe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>
+                          {marginPercent > 0 ? '+' : ''}{marginPercent.toFixed(1)}%
+                        </div>
+                      </div>
                     </div>
                   </div>
+
+                  {/* PCC-1 Summary Card */}
                   {inputs.usePcc1Check && (
-                    <div className={`p-6 rounded-[1.5rem] border mb-10 flex items-center gap-6 ${pccStatusInfo.safe ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
-                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg ${pccStatusInfo.safe ? 'bg-[#00c58d]' : 'bg-[#f83a3a]'}`}><i className={`fa-solid ${pccStatusInfo.safe ? 'fa-check' : 'fa-xmark'} text-white text-xl`}></i></div>
-                      <div className="flex-1">
-                        <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest">PCC-1 Summary</div>
-                        <div className={`text-sm font-black uppercase ${pccStatusInfo.safe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>{pccStatusInfo.safe ? 'PCC-1 VALIDATED' : 'RECHECK PCC'}</div>
+                    <div className={`p-5 rounded-[1.5rem] border flex items-center gap-6 mb-4 ${pccStatusInfo.safe ? 'border-white/5 bg-white/5' : 'border-red-500/20 bg-red-500/5'}`}>
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shrink-0 ${pccStatusInfo.safe ? 'bg-[#00c58d]' : 'bg-[#f83a3a]'}`}>
+                        <i className={`fa-solid ${pccStatusInfo.safe ? 'fa-check' : 'fa-xmark'} text-white text-lg`}></i>
+                      </div>
+                      <div className="flex-1 space-y-0.5">
+                        <div className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">PCC-1 SUMMARY</div>
+                        <div className={`text-sm font-black uppercase tracking-tight ${pccStatusInfo.safe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>
+                          {pccStatusInfo.safe ? 'PCC-1 VALIDATED' : 'RECHECK PCC'}
+                        </div>
                       </div>
                     </div>
                   )}
-                  <div className="grid grid-cols-2 gap-4 relative z-10">
+
+                  <div className="grid grid-cols-2 gap-4 relative z-10 mt-6">
                     <div className="bg-slate-900/50 p-6 rounded-[1.5rem] border border-white/5 space-y-4 text-center">
                       <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest h-8 flex items-center justify-center px-2">Allowable Bolt Root Area</div>
                       <div className="text-lg font-black text-sky-400">{results.totalBoltArea.toFixed(1)} <small className="text-[9px]">mm²</small></div>

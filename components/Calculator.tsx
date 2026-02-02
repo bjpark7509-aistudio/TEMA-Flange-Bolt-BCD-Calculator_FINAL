@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { FlangeInputs, CalculationResults, BoltMaterial, ShellMaterial, TemaBoltInfo, GasketType, RingStandard } from '../types';
 
@@ -184,7 +183,7 @@ export const Calculator: React.FC<Props> = ({ inputs, onInputChange, onOptimize,
       hasInnerRing: true,
       hasOuterRing: true,
       useManualOverride: inputs.useManualOverride,
-      gasketPreference: undefined, // undefined로 초기화하여 다시 "더 큰 값 선택(Auto-Max)" 로직 적용
+      gasketPreference: undefined, 
       manualM: 0,
       manualY: 0,
       manualPassM: 0,
@@ -216,19 +215,15 @@ export const Calculator: React.FC<Props> = ({ inputs, onInputChange, onOptimize,
   const s1OD = results.maxRaisedFace; 
   const s2OD = inputs.insideDia + (2 * (inputs.shellGapA !== undefined ? inputs.shellGapA : 3.0)) + (2 * currentIR) + (2 * inputs.gasketSeatingWidth); 
 
-  // 활성화 상태 하이라이트 로직 수정: gasketPreference가 명시되지 않은 자동 모드에서도 실제 결과값(results.seatingOD)과 일치하는 쪽이 하이라이트됨.
-  // "더 큰 값이 먼저 활성화되게" 수정된 App.tsx의 로직과 시각적으로 동기화됨.
   let isSug1Active = false;
   let isSug2Active = false;
 
   if (inputs.useManualOverride) {
-    // 수동 모드일 때는 현재 수동 입력값이 어느 쪽 제안과 일치하는지 표시
     isSug1Active = Math.abs(localManualValues.manualSeatingOD - s1OD) < 0.1;
     isSug2Active = Math.abs(localManualValues.manualSeatingOD - s2OD) < 0.1;
   } else {
-    // 자동 모드일 때는 실제 계산에 적용된 OD가 어느 쪽인지에 따라 하이라이트 (더 큰 쪽이 자동 선택됨)
     isSug1Active = Math.abs(results.seatingOD - s1OD) < 0.1;
-    isSug2Active = Math.abs(results.seatingOD - s2OD) < 0.1 && !isSug1Active; // 두 값이 같을 경우 1번 우선 표시
+    isSug2Active = Math.abs(results.seatingOD - s2OD) < 0.1 && !isSug1Active;
   }
 
   const filteredBolts = temaBoltData.filter(b => b.size >= 0.75);
@@ -293,7 +288,7 @@ export const Calculator: React.FC<Props> = ({ inputs, onInputChange, onOptimize,
     <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
       <div className="flex justify-between items-center mb-4 border-b pb-3">
         <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2 uppercase tracking-tighter">
-          <i className="fa-solid fa-sliders text-sky-600"></i> Input Data
+          <i className="fa-solid fa-sliders text-sky-600"></i> INPUT Data
         </h2>
         <div className="flex gap-2">
            <button 

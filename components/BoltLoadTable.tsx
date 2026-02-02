@@ -28,6 +28,7 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
   
   // State to track original ID during editing to preserve row position
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingKeyNum, setEditingKeyNum] = useState<number | null>(null);
 
   // State for Material CRUD
   const [isEditingMaterial, setIsEditingMaterial] = useState<boolean>(false);
@@ -171,11 +172,14 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
   const step7Threshold = totalBoltRootArea > 0 ? inputs.sgMax * (totalAg / totalBoltRootArea) : Infinity;
   const step8Threshold = inputs.phiFMax > 0 ? inputs.sfMax * ((inputs.phiGMax || 1) / inputs.phiFMax) : Infinity;
 
+  // Fix: Define the boolean status variables for each PCC-1 step
   const isStep5Ok = sbSelFinal >= step5Threshold - 0.001;
   const isStep6Ok = sbSelFinal >= step6Threshold - 0.001;
   const isStep7Ok = inputs.sgMax === 0 ? true : (sbSelFinal <= step7Threshold + 0.001);
   const isStep8Ok = inputs.phiFMax === 0 ? true : (sbSelFinal <= step8Threshold + 0.001);
-  const isAllSafe = isStep5Ok && isStep6Ok && isStep7Ok && isStep8Ok && sbSelFinal <= (inputs.sbMax || Infinity) && sbSelFinal >= (inputs.sbMin || 0);
+
+  const isSafe = results.totalBoltLoadDesign >= Math.max(results.wm1, results.wm2);
+  const marginPercent = ((results.totalBoltLoadDesign - Math.max(results.wm1, results.wm2)) / (Math.max(results.wm1, results.wm2) || 1)) * 100;
 
   const currentBoltRef = temaBoltData.find(b => b.size === inputs.boltSize);
 
@@ -218,11 +222,9 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
       return;
     }
     setBoltMaterials(prev => {
-      // 제자리 업데이트를 위해 map 사용
       if (editingId) {
         return prev.map(m => m.id === editingId ? editingMaterial : m);
       }
-      // 신규 추가인 경우 맨 뒤에 추가
       return [...prev, editingMaterial];
     });
     setIsEditingMaterial(false);
@@ -266,11 +268,9 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
       return;
     }
     setPlateMaterials(prev => {
-      // 제자리 업데이트를 위해 map 사용
       if (editingId) {
         return prev.map(m => m.id === editingId ? editingPlateMaterial : m);
       }
-      // 신규 추가인 경우 맨 뒤에 추가
       return [...prev, editingPlateMaterial];
     });
     setIsEditingPlateMaterial(false);
@@ -280,6 +280,7 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
 
   // --- Bolt Spec CRUD (Table D-5) Handlers ---
   const handleAddNewBoltSpec = () => {
+    setEditingKeyNum(null);
     const newSpec: TemaBoltInfo = {
       size: 0,
       R: 0,
@@ -293,6 +294,7 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
   };
 
   const handleEditBoltSpec = (spec: TemaBoltInfo) => {
+    setEditingKeyNum(spec.size);
     setEditingBoltSpec({ ...spec });
     setIsEditingBoltSpec(true);
   };
@@ -314,16 +316,19 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
       return;
     }
     setTemaBoltData(prev => {
-      const filtered = prev.filter(b => b.size !== editingBoltSpec.size);
-      const updated = [...filtered, editingBoltSpec].sort((a, b) => a.size - b.size);
-      return updated;
+      if (editingKeyNum !== null) {
+        return prev.map(b => b.size === editingKeyNum ? editingBoltSpec : b);
+      }
+      return [...prev, editingBoltSpec];
     });
     setIsEditingBoltSpec(false);
     setEditingBoltSpec(null);
+    setEditingKeyNum(null);
   };
 
   // --- Tensioning CRUD Handlers ---
   const handleAddNewTensioningSpec = () => {
+    setEditingKeyNum(null);
     const newSpec: TensioningInfo = {
       size: 0,
       B_ten: 0
@@ -333,6 +338,7 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
   };
 
   const handleEditTensioningSpec = (spec: TensioningInfo) => {
+    setEditingKeyNum(spec.size);
     setEditingTensioningSpec({ ...spec });
     setIsEditingTensioningSpec(true);
   };
@@ -350,16 +356,19 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
       return;
     }
     setTensioningData(prev => {
-      const filtered = prev.filter(t => t.size !== editingTensioningSpec.size);
-      const updated = [...filtered, editingTensioningSpec].sort((a, b) => a.size - b.size);
-      return updated;
+      if (editingKeyNum !== null) {
+        return prev.map(t => t.size === editingKeyNum ? editingTensioningSpec : t);
+      }
+      return [...prev, editingTensioningSpec];
     });
     setIsEditingTensioningSpec(false);
     setEditingTensioningSpec(null);
+    setEditingKeyNum(null);
   };
 
   // --- Gasket Factor CRUD Handlers ---
   const handleAddNewGasketFactor = () => {
+    setEditingId(null);
     const newGasket: GasketType = {
       id: "New Gasket " + (gasketTypes.length + 1),
       m: 0,
@@ -371,6 +380,7 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
   };
 
   const handleEditGasketFactor = (g: GasketType) => {
+    setEditingId(g.id);
     setEditingGasketFactor({ ...g });
     setIsEditingGasketFactor(true);
   };
@@ -392,15 +402,19 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
       return;
     }
     setGasketTypes(prev => {
-      const filtered = prev.filter(g => g.id !== editingGasketFactor.id);
-      return [...filtered, editingGasketFactor];
+      if (editingId) {
+        return prev.map(g => g.id === editingId ? editingGasketFactor : g);
+      }
+      return [...prev, editingGasketFactor];
     });
     setIsEditingGasketFactor(false);
     setEditingGasketFactor(null);
+    setEditingId(null);
   };
 
   // --- Ring Standard CRUD Handlers ---
   const handleAddNewRingStandard = () => {
+    setEditingKeyNum(null);
     const newRing: RingStandard = {
       min: 0,
       max: 0,
@@ -412,6 +426,7 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
   };
 
   const handleEditRingStandard = (ring: RingStandard) => {
+    setEditingKeyNum(ring.min);
     setEditingRingStandard({ ...ring });
     setIsEditingRingStandard(true);
   };
@@ -425,12 +440,14 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
   const saveRingStandard = () => {
     if (!editingRingStandard) return;
     setRingStandards(prev => {
-      const filtered = prev.filter(r => !(r.min === editingRingStandard.min && r.max === editingRingStandard.max));
-      const updated = [...filtered, editingRingStandard].sort((a, b) => a.min - b.min);
-      return updated;
+      if (editingKeyNum !== null) {
+        return prev.map(r => r.min === editingKeyNum ? editingRingStandard : r);
+      }
+      return [...prev, editingRingStandard];
     });
     setIsEditingRingStandard(false);
     setEditingRingStandard(null);
+    setEditingKeyNum(null);
   };
 
   const handleRingCsvUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -454,7 +471,7 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
         });
       }
       if (data.length > 0) {
-        setRingStandards(data.sort((a, b) => a.min - b.min));
+        setRingStandards(data);
         alert(`Imported ${data.length} ring standards.`);
       } else alert("Invalid CSV format.");
     };
@@ -517,7 +534,7 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
         data.push({ size: parseFloat(cols[0]) || 0, B_ten: parseFloat(cols[1]) || 0 });
       }
       if (data.length > 0) {
-        setTensioningData(data.sort((a, b) => a.size - b.size));
+        setTensioningData(data);
         alert(`Imported ${data.length} tensioning specifications.`);
       } else alert("Invalid CSV format.");
     };
@@ -537,26 +554,68 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
     reader.onload = (e) => {
       const text = e.target?.result as string;
       const lines = text.split(/\r?\n/);
+      if (lines.length < 2) return;
+
+      // HLOOKUP Style Implementation:
+      // First, analyze the first row (headers) of the Excel/CSV file to find column positions.
+      const headerRow = lines[0].split(',').map(h => h.trim().toLowerCase());
+      
+      const findColIdx = (exactKey: string, partialKeywords: string[]) => {
+        // Priority 1: Exact Match
+        const exact = headerRow.indexOf(exactKey.toLowerCase());
+        if (exact !== -1) return exact;
+        
+        // Priority 2: Precise Partial Match
+        return headerRow.findIndex(h => partialKeywords.some(k => {
+          const lowerH = h.toLowerCase();
+          const lowerK = k.toLowerCase();
+          // Standard mapping for common headers
+          if (lowerK === 'r' || lowerK === 'b_min') {
+             return lowerH === lowerK || lowerH.startsWith(lowerK + ' ') || lowerH.includes('(' + lowerK + ')');
+          }
+          return lowerH.includes(lowerK);
+        }));
+      };
+
+      // Apply specific keywords from user request
+      const idxSize = findColIdx('Size (in)', ['size (in)', 'size']);
+      const idxR = findColIdx('R (in)', ['r (in)', 'radial', 'r']);
+      const idxBmin = findColIdx('B_min (in)', ['b_min (in)', 'b_min', 'b min']);
+      const idxBmax = findColIdx('B_max(WHC STD)', ['b_max', 'whc', 'max pitch']);
+      const idxE = findColIdx('E (in)', ['e (in)']); // User requested "e (in)"
+      const idxHole = findColIdx('Hole dH (mm)', ['hole', 'dh', 'hole size']);
+      const idxArea = findColIdx('Area (mm²)', ['area (mm²)']); // User requested "area (mm²)"
+
+      // Error check: If we can't find the 'Size' column, we can't proceed.
+      if (idxSize === -1) {
+        alert("Could not find 'Size (in)' column in the header row. Please check your CSV file headers.");
+        return;
+      }
+
       const data: TemaBoltInfo[] = [];
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
         if (!line) continue;
         const cols = line.split(',').map(c => c.trim());
-        if (cols.length < 6) continue;
+        
+        // Helper to safely get float value or 0
+        const getVal = (idx: number) => idx !== -1 && idx < cols.length ? (parseFloat(cols[idx]) || 0) : 0;
+
         data.push({
-          size: parseFloat(cols[0]) || 0,
-          R: parseFloat(cols[1]) || 0,
-          B_min: parseFloat(cols[2]) || 0,
-          E: parseFloat(cols[3]) || 0,
-          holeSize: parseFloat(cols[4]) || 0,
-          tensileArea: parseFloat(cols[5]) || 0,
-          bMinWhc: parseFloat(cols[6]) || undefined
+          size: getVal(idxSize),
+          R: getVal(idxR),
+          B_min: getVal(idxBmin),
+          E: getVal(idxE),
+          holeSize: getVal(idxHole),
+          tensileArea: getVal(idxArea),
+          bMinWhc: idxBmax !== -1 ? (parseFloat(cols[idxBmax]) || undefined) : undefined
         });
       }
+
       if (data.length > 0) {
-        setTemaBoltData(data.sort((a, b) => a.size - b.size));
-        alert(`Imported ${data.length} bolt specifications.`);
-      } else alert("Invalid CSV format.");
+        setTemaBoltData(data);
+        alert(`Imported ${data.length} bolt specifications using keywords 'e (in)' and 'area (mm²)'.`);
+      } else alert("Invalid CSV format or no data found.");
     };
     reader.readAsText(file);
     if (event.target) event.target.value = '';
@@ -567,12 +626,10 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
     alert('Tema Bolt Specifications have been saved as default values.');
   };
 
-  // BOLT STRESS (2025ED) CSV 파싱 로직: ID(0), Tensile(1), Yield(2), Stresses(3+)
   const parseBoltCsv = (text: string): BoltMaterial[] => {
     const lines = text.split(/\r?\n/);
     const startIdx = lines.findIndex(l => {
       const upper = l.toUpperCase();
-      // 'SA-', 'SB-', 'SF-' 등으로 시작하는 데이터 행 찾기 (첫 열 기준)
       return upper.includes('SA-') || upper.includes('SA–') || upper.includes('SB-') || upper.includes('SF-');
     });
     if (startIdx === -1) return [];
@@ -582,13 +639,11 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
       const line = lines[i].trim();
       if (!line) continue;
       const cols = line.split(',').map(c => c.trim());
-      // 엑셀 양식: ID(0), Tensile(1), Yield(2), 40(3), 65(4), 100(5), 125(6)...
       const id = cols[0];
       const minTensile = parseFloat(cols[1]) || 0;
       const minYield = parseFloat(cols[2]) || 0;
       const stresses = BOLT_TEMP_STEPS.map((_, tempIdx) => {
         const val = cols[3 + tempIdx];
-        // '...', '…' (Ellipsis) 및 빈 칸을 null로 처리
         return (val === undefined || val === '' || val === '...' || val === '…') ? null : parseFloat(val);
       });
       result.push({ id, minTensile, minYield, stresses });
@@ -596,7 +651,6 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
     return result;
   };
 
-  // PLATE STRESS (2023ED) CSV 파싱 로직: ID(0), PNo(1), GNo(2), Tensile(3), Yield(4), Stresses(5+)
   const parsePlateCsvInternal = (text: string): ShellMaterial[] => {
     const lines = text.split(/\r?\n/);
     const startIdx = lines.findIndex(l => {
@@ -610,7 +664,6 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
       const line = lines[i].trim();
       if (!line) continue;
       const cols = line.split(',').map(c => c.trim());
-      // 엑셀 양식: ID(0), P-No(1), Group(2), Tensile(3), Yield(4), 40(5), 65(6)...
       const id = cols[0];
       const minTensile = parseFloat(cols[3]) || 0;
       const minYield = parseFloat(cols[4]) || 0;
@@ -1037,7 +1090,7 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
                         { label: "B-MIN", val: `${currentBoltRef?.B_min}"` },
                         { label: "R (Radial Rh)", val: `${currentBoltRef?.R}"` },
                         { label: "E (Edge Dist.)", val: `${currentBoltRef?.E}"` },
-                        { label: "Hole Size dH", val: `${currentBoltRef?.holeSize.toFixed(1)} mm` },
+                        { label: "Hole Size dH", val: `${currentBoltRef?.holeSize.toFixed(3)} mm` },
                         { label: "Tensile Area", val: `${(currentBoltRef?.tensileArea || 0).toFixed(1)} mm²` }
                       ].map((item, idx) => (
                         <div key={idx} className="bg-slate-50 p-3 rounded-xl border border-slate-100 shadow-sm">
@@ -1255,7 +1308,7 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
                             <td className={tableCellClass}>{bolt.B_min}</td>
                             <td className={`${tableCellClass} font-black text-sky-600`}>{bolt.bMinWhc || '-'}</td>
                             <td className={tableCellClass}>{bolt.E}</td>
-                            <td className={tableCellClass}>{bolt.holeSize.toFixed(1)}</td>
+                            <td className={tableCellClass}>{bolt.holeSize.toFixed(3)}</td>
                             <td className={tableCellClass}>{bolt.tensileArea.toFixed(1)}</td>
                           </tr>
                         ))}
@@ -1601,7 +1654,7 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Hole Diameter (mm)</label>
-                <input type="number" step="0.1" value={editingBoltSpec.holeSize} onChange={(e) => setEditingBoltSpec({...editingBoltSpec, holeSize: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm" />
+                <input type="number" step="0.001" value={editingBoltSpec.holeSize} onChange={(e) => setEditingBoltSpec({...editingBoltSpec, holeSize: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm" />
               </div>
               <div className="space-y-1">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Tensile Area (mm²)</label>
@@ -1714,6 +1767,7 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
                       <input type="number" step="0.1" value={editingPlateMaterial.stresses[idx] === null ? '' : editingPlateMaterial.stresses[idx]} onChange={(e) => {
                         const newStresses = [...editingPlateMaterial.stresses];
                         newStresses[idx] = e.target.value === '' ? null : parseFloat(e.target.value);
+                        {/* Corrected state setter from setPlateMaterials to setEditingPlateMaterial to fix TS error */}
                         setEditingPlateMaterial({...editingPlateMaterial, stresses: newStresses});
                       }} className="w-full px-2 py-1 text-center border rounded-md text-[10px] font-mono focus:border-emerald-500 outline-none" />
                     </div>

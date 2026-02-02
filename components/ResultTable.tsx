@@ -131,7 +131,7 @@ export const ResultTable: React.FC<Props> = ({ inputs, results, temaBoltData, te
             <div className="animate-in fade-in duration-300">
               <div className={detailTextClass}>GasketOD + (B × 2) + (C × 2) + BoltHole</div>
               <div className={substitutionTextClass}>
-                {results.gasketOD.toFixed(1)} + (1.5 × 2) + ({results.effectiveC} × 2) + {results.boltHoleSize} =
+                {results.gasketOD.toFixed(1)} + (1.5 × 2) + ({results.effectiveC} × 2) + {results.boltHoleSize.toFixed(3)} =
               </div>
             </div>
           )}
