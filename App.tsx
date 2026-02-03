@@ -94,6 +94,7 @@ const calculateAutoG0 = (currentInputs: Partial<FlangeInputs>, plateMaterials: S
   return Math.ceil(autoG0);
 };
 
+// Initial state for FlangeInputs
 const initialInputs: FlangeInputs = {
   itemNo: 'GEN-001',
   partName: 'CHANNEL SIDE',
@@ -268,6 +269,7 @@ const App: React.FC = () => {
     autoSeatingOD = Math.ceil(autoSeatingOD);
     const autoSeatingID = Math.ceil(autoSeatingOD - (2 * currentInputs.gasketSeatingWidth));
 
+    // Support logic for Manual Override values > 0: reflecting only non-zero manual values as requested
     const seatingID = (currentInputs.useManualOverride && currentInputs.manualSeatingID !== 0) ? currentInputs.manualSeatingID : autoSeatingID;
     const seatingOD = (currentInputs.useManualOverride && currentInputs.manualSeatingOD !== 0) ? currentInputs.manualSeatingOD : autoSeatingOD;
     
@@ -421,9 +423,15 @@ const App: React.FC = () => {
   const handleOptimize = () => {
     let bestSize = inputs.boltSize;
     let bestCount = inputs.boltCount;
-    let minPositiveMargin = Infinity; 
-    let minSeatingOD = Infinity;
+    let minMargin = Infinity; 
+    let minBcd = Infinity;
     let found = false;
+
+    // Rules Summary:
+    // 1. START click -> Minimize BCD & Seating OD (BCD-based), satisfy Req Area & Spacing, smallest positive Margin.
+    // 2. After Size Change -> Lock Size, find smallest Bolt Count satisfying requirements.
+    // 3. Shell ID active -> Fixed Gasket Seal OD, find optimal Size/Count with smallest positive Margin.
+    // 4. Manual Input active -> Respect non-zero values, optimize remaining with smallest positive Margin.
 
     const sizesToSearch = isFixedSizeSearch ? [inputs.boltSize] : temaBoltData.filter(b => b.size >= 0.75).map(b => b.size);
     const boltCounts = [4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80];
@@ -433,36 +441,36 @@ const App: React.FC = () => {
         const testInputs = { ...inputs, boltSize: size, boltCount: count };
         const testResults = calculateFullResults(testInputs);
         
-        const reqLoad = Math.max(testResults.wm1, testResults.wm2);
         const isAreaSafe = testResults.totalBoltArea >= testResults.requiredBoltArea;
         const isSpacingOk = testResults.spacingOk;
 
         if (isAreaSafe && isSpacingOk) {
-          const margin = (testResults.totalBoltLoadDesign - reqLoad) / (reqLoad || 1);
+          const margin = (testResults.totalBoltLoadDesign - Math.max(testResults.wm1, testResults.wm2)) / (Math.max(testResults.wm1, testResults.wm2) || 1);
+          const currentBcd = testResults.finalBCD;
           const currentSeatingOD = testResults.maxRaisedFace; // BASED ON BCD
 
-          // Selection Logic based on user requests:
+          // Prioritization Logic
           if (isFixedSizeSearch) {
-            // Rule 2: Size is fixed, find smallest Bolt Count
+            // Rule 2: Fixed Size - Priority is smallest Count (which usually corresponds to smallest positive margin)
             if (!found || count < bestCount) {
               bestCount = count;
-              minPositiveMargin = margin;
+              minMargin = margin;
               found = true;
             }
           } else if (inputs.gasketPreference === 'shell' || inputs.useManualOverride) {
-            // Rule 3 & 4: Fixed constraint active, prioritize Smallest Margin
-            if (margin >= 0 && margin < minPositiveMargin) {
-              minPositiveMargin = margin;
+            // Rule 3 & 4: Constraints active - Priority is smallest positive Margin on valid configuration
+            if (margin >= 0 && margin < minMargin) {
+              minMargin = margin;
               bestSize = size;
               bestCount = count;
               found = true;
             }
           } else {
-            // Rule 1 (Default Start): Smallest Gasket Seating OD (BCD based) + Smallest positive Margin
-            // We look for absolute minimum OD, and among ties, smallest margin.
-            if (!found || currentSeatingOD < minSeatingOD || (currentSeatingOD === minSeatingOD && margin < minPositiveMargin)) {
-              minSeatingOD = currentSeatingOD;
-              minPositiveMargin = margin;
+            // Rule 1: Global Start - Priority 1: Smallest BCD/SeatingOD. Priority 2: Smallest Margin.
+            const totalDimensionScore = currentBcd + currentSeatingOD;
+            if (!found || totalDimensionScore < minBcd || (totalDimensionScore === minBcd && margin < minMargin)) {
+              minBcd = totalDimensionScore;
+              minMargin = margin;
               bestSize = size;
               bestCount = count;
               found = true;
@@ -478,9 +486,9 @@ const App: React.FC = () => {
         boltSize: bestSize, 
         boltCount: bestCount
       }));
-      alert(`Optimization Completed!\nBolt Size: ${bestSize}"\nBolt Count: ${bestCount} EA\n${!isFixedSizeSearch ? `Gasket Seating OD: ${minSeatingOD}mm\n` : ''}Margin: ${(minPositiveMargin * 100).toFixed(2)}%`);
+      alert(`Optimization Completed!\nBolt Size: ${bestSize}"\nBolt Count: ${bestCount} EA\nMargin: ${(minMargin * 100).toFixed(2)}%`);
     } else {
-      alert(`No valid configuration found with current constraints. Try increasing search range or loosening overrides.`);
+      alert(`No valid configuration found. Consider increasing bolt count or range.`);
     }
   };
 
