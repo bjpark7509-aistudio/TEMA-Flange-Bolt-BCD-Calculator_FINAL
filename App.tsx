@@ -199,15 +199,10 @@ const App: React.FC = () => {
   });
   
   const [isFixedSizeSearch, setIsFixedSizeSearch] = useState<boolean>(false);
-  const [savedRecords, setSavedRecords] = useState<SavedRecord[]>(() => {
-    const saved = localStorage.getItem('flange_genie_saved_records');
-    try {
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      console.error("Failed to parse saved records", e);
-      return [];
-    }
-  });
+  
+  // RESET on Reopen: Do not load from localStorage
+  const [savedRecords, setSavedRecords] = useState<SavedRecord[]>([]);
+  
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
   // Auto-save logic for inputs and legend
@@ -220,10 +215,7 @@ const App: React.FC = () => {
     }
   }, [inputs]);
 
-  // Auto-save logic for saved summary list
-  useEffect(() => {
-    localStorage.setItem('flange_genie_saved_records', JSON.stringify(savedRecords));
-  }, [savedRecords]);
+  // Removed useEffect for saving savedRecords to localStorage to ensure reset on REOPEN
 
   useEffect(() => {
     localStorage.setItem('flange_genie_bolt_materials', JSON.stringify(boltMaterials));
@@ -597,7 +589,7 @@ const App: React.FC = () => {
             </div>
             <div>
               <h1 className="text-2xl font-black text-slate-800 tracking-tighter uppercase">Flange Genie</h1>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">TEMA & ASME & PCC-1 Engineering Calculator</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">TEMA&ASME&PCC-1 Engineering Calculator</p>
             </div>
           </div>
         </header>
@@ -638,25 +630,25 @@ const App: React.FC = () => {
                 <div className="bg-[#0f172a] mx-3 mb-3 p-8 rounded-[2rem] border border-slate-800 shadow-2xl flex flex-col text-white relative">
                   <div className="flex items-center gap-4 mb-6">
                     <div className="h-[1px] flex-1 bg-white/10"></div>
-                    <span className="text-[8px] font-black text-slate-500 tracking-[0.3em] uppercase">Load Analysis</span>
+                    <span className="text-[10px] font-black text-slate-500 tracking-[0.3em] uppercase">LOAD ANALYSIS</span>
                     <div className="h-[1px] flex-1 bg-white/10"></div>
                   </div>
                   
                   {/* Bolt Status Card */}
-                  <div className={`p-5 rounded-[1.5rem] border flex items-center gap-6 mb-4 ${isSafe ? 'border-white/5 bg-white/5' : 'border-red-500/20 bg-red-500/5'}`}>
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shrink-0 ${isSafe ? 'bg-[#00c58d]' : 'bg-[#f83a3a]'}`}>
-                      <i className={`fa-solid ${isSafe ? 'fa-check' : 'fa-xmark'} text-white text-lg`}></i>
+                  <div className={`p-5 rounded-[1.5rem] border flex items-center gap-6 mb-4 ${isSafe ? 'border-white/10 bg-white/5' : 'border-red-500/20 bg-red-500/5'}`}>
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg shrink-0 ${isSafe ? 'bg-[#00c58d]' : 'bg-[#f83a3a]'}`}>
+                      <i className={`fa-solid ${isSafe ? 'fa-check' : 'fa-xmark'} text-white text-xl`}></i>
                     </div>
                     <div className="flex-1 grid grid-cols-2 gap-4">
                       <div className="space-y-0.5">
-                        <div className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">STATUS</div>
-                        <div className={`text-sm font-black uppercase tracking-tight ${isSafe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>
+                        <div className="text-[10px] font-bold text-[#525f7a] uppercase tracking-widest">STATUS</div>
+                        <div className={`text-base font-black uppercase tracking-tight ${isSafe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>
                           {isSafe ? 'ACCEPTABLE' : 'RECHECK LOAD'}
                         </div>
                       </div>
                       <div className="space-y-0.5 text-right">
-                        <div className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">MARGIN</div>
-                        <div className={`text-lg font-black tracking-tighter ${isSafe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>
+                        <div className="text-[10px] font-bold text-[#525f7a] uppercase tracking-widest">MARGIN</div>
+                        <div className={`text-2xl font-black tracking-tighter ${isSafe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>
                           {marginPercent > 0 ? '+' : ''}{marginPercent.toFixed(1)}%
                         </div>
                       </div>
@@ -665,13 +657,13 @@ const App: React.FC = () => {
 
                   {/* PCC-1 Summary Card */}
                   {inputs.usePcc1Check && (
-                    <div className={`p-5 rounded-[1.5rem] border flex items-center gap-6 mb-4 ${pccStatusInfo.safe ? 'border-white/5 bg-white/5' : 'border-red-500/20 bg-red-500/5'}`}>
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shrink-0 ${pccStatusInfo.safe ? 'bg-[#00c58d]' : 'bg-[#f83a3a]'}`}>
-                        <i className={`fa-solid ${pccStatusInfo.safe ? 'fa-check' : 'fa-xmark'} text-white text-lg`}></i>
+                    <div className={`p-5 rounded-[1.5rem] border flex items-center gap-6 mb-4 ${pccStatusInfo.safe ? 'border-white/10 bg-white/5' : 'border-red-500/20 bg-red-500/5'}`}>
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg shrink-0 ${pccStatusInfo.safe ? 'bg-[#00c58d]' : 'bg-[#f83a3a]'}`}>
+                        <i className={`fa-solid ${pccStatusInfo.safe ? 'fa-check' : 'fa-xmark'} text-white text-xl`}></i>
                       </div>
                       <div className="flex-1 space-y-0.5">
-                        <div className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">PCC-1 SUMMARY</div>
-                        <div className={`text-sm font-black uppercase tracking-tight ${pccStatusInfo.safe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>
+                        <div className="text-[10px] font-bold text-[#525f7a] uppercase tracking-widest">PCC-1 SUMMARY</div>
+                        <div className={`text-base font-black uppercase tracking-tight ${pccStatusInfo.safe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>
                           {pccStatusInfo.safe ? 'PCC-1 VALIDATED' : 'RECHECK PCC'}
                         </div>
                       </div>
