@@ -674,7 +674,7 @@ export const Calculator: React.FC<Props> = ({ inputs, onInputChange, onOptimize,
                 }`}>GASKET SEATING OD (BASED ON BCD)</span>
               </div>
               <div className="flex justify-between items-baseline">
-                <span className={`text-sm font-black ${isSug1Active ? 'text-white' : 'text-slate-700'}`}>{s1OD.toFixed(1)}</span>
+                <span className={`text-sm font-black ${isSug1Active ? 'text-white' : 'text-slate-700'}`}>{s1OD.toFixed(0)}</span>
                 <span className={`text-[8px] font-bold uppercase ${isSug1Active ? 'text-indigo-200' : 'text-slate-400'}`}>mm</span>
               </div>
               <div className={`text-[7px] mt-1 font-bold ${isSug1Active ? 'text-indigo-200' : 'text-slate-400'}`}>
@@ -699,7 +699,7 @@ export const Calculator: React.FC<Props> = ({ inputs, onInputChange, onOptimize,
                 }`}>GASKET SEATING OD (BASED ON SHELL ID)</span>
               </div>
               <div className="flex justify-between items-baseline">
-                <span className={`text-sm font-black ${isSug2Active ? 'text-white' : 'text-slate-700'}`}>{s2OD.toFixed(1)}</span>
+                <span className={`text-sm font-black ${isSug2Active ? 'text-white' : 'text-slate-700'}`}>{Math.ceil(s2OD).toFixed(0)}</span>
                 <span className={`text-[8px] font-bold uppercase ${isSug2Active ? 'text-indigo-200' : 'text-slate-400'}`}>mm</span>
               </div>
               <div className={`text-[7px] mt-1 font-bold ${isSug2Active ? 'text-sky-200' : 'text-slate-400'}`}>

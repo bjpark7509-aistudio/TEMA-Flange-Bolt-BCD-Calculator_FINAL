@@ -94,7 +94,6 @@ const calculateAutoG0 = (currentInputs: Partial<FlangeInputs>, plateMaterials: S
   return Math.ceil(autoG0);
 };
 
-// Initial state for FlangeInputs
 const initialInputs: FlangeInputs = {
   itemNo: 'GEN-001',
   partName: 'CHANNEL SIDE',
@@ -179,7 +178,6 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : INITIAL_RING_STANDARDS;
   });
 
-  // Reopen Logic: Load entire inputs state including custom legend from localStorage
   const [inputs, setInputs] = useState<FlangeInputs>(() => {
     const savedInputs = localStorage.getItem('flange_genie_current_inputs');
     if (savedInputs) {
@@ -190,7 +188,6 @@ const App: React.FC = () => {
         console.error("Failed to parse saved inputs", e);
       }
     }
-    // Fallback to legend-only if full inputs not found
     const savedLegend = localStorage.getItem('flange_genie_custom_legend');
     if (savedLegend) {
       return { ...initialInputs, customLegendUrl: savedLegend };
@@ -199,13 +196,9 @@ const App: React.FC = () => {
   });
   
   const [isFixedSizeSearch, setIsFixedSizeSearch] = useState<boolean>(false);
-  
-  // RESET on Reopen: Do not load from localStorage
   const [savedRecords, setSavedRecords] = useState<SavedRecord[]>([]);
-  
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
-  // Auto-save logic for inputs and legend
   useEffect(() => {
     localStorage.setItem('flange_genie_current_inputs', JSON.stringify(inputs));
     if (inputs.customLegendUrl) {
@@ -250,8 +243,7 @@ const App: React.FC = () => {
     const shellGapA = currentInputs.shellGapA !== undefined ? currentInputs.shellGapA : 3.0;
     const bConst = 1.5; 
 
-    // Remove Math.ceil to keep original precision for Hole Size
-    const boltHoleSizeVal = boltData.holeSize;
+    const boltHoleSizeVal = Math.ceil(boltData.holeSize);
     const effectiveBMin = (currentInputs.useHydraulicTensioning && tensionData) 
       ? Math.max(boltData.B_min, tensionData.B_ten) 
       : boltData.B_min;
@@ -273,15 +265,26 @@ const App: React.FC = () => {
       autoSeatingOD = Math.max(autoSeatingOD_BCD, autoSeatingOD_Shell);
     }
     
-    const autoSeatingID = autoSeatingOD - (2 * currentInputs.gasketSeatingWidth);
+    autoSeatingOD = Math.ceil(autoSeatingOD);
+    const autoSeatingID = Math.ceil(autoSeatingOD - (2 * currentInputs.gasketSeatingWidth));
 
-    const seatingID = currentInputs.useManualOverride ? currentInputs.manualSeatingID : autoSeatingID;
-    const seatingOD = currentInputs.useManualOverride ? currentInputs.manualSeatingOD : autoSeatingOD;
+    const seatingID = (currentInputs.useManualOverride && currentInputs.manualSeatingID !== 0) ? currentInputs.manualSeatingID : autoSeatingID;
+    const seatingOD = (currentInputs.useManualOverride && currentInputs.manualSeatingOD !== 0) ? currentInputs.manualSeatingOD : autoSeatingOD;
     
     const gasketOD = seatingOD + (currentInputs.hasOuterRing ? (2 * outerRingWidth) : 0);
     const gasketID = seatingID - (currentInputs.hasInnerRing ? (2 * innerRingWidth) : 0);
 
-    const bcdMethod3 = gasketOD + (2 * bConst) + (2 * effectiveC) + boltHoleSizeVal;
+    const bcdMethod3 = Math.ceil(
+      currentInputs.insideDia + 
+      (2 * shellGapA) + 
+      (2 * innerRingWidth) + 
+      (2 * currentInputs.gasketSeatingWidth) + 
+      (2 * outerRingWidth) + 
+      (2 * bConst) + 
+      (2 * effectiveC) + 
+      boltHoleSizeVal
+    );
+
     const bcdTema = Math.max(bcdMethod1, bcdMethod2, bcdMethod3);
     const selectedBcdSource = bcdTema === bcdMethod1 ? 1 : (bcdTema === bcdMethod2 ? 2 : 3);
 
@@ -342,7 +345,7 @@ const App: React.FC = () => {
       radialDistance, edgeDistance, effectiveC, shellGapA,
       gasketSeatingWidth: nWidth, innerRingWidth, outerRingWidth,
       gasketID, seatingID, seatingOD, gasketOD, finalBCD, finalOD,
-      maxRaisedFace: finalBCD - boltHoleSizeVal - (2 * effectiveC) - (2 * bConst) - (2 * outerRingWidth), 
+      maxRaisedFace: Math.ceil(finalBCD - boltHoleSizeVal - (2 * effectiveC) - (2 * bConst) - (2 * outerRingWidth)), 
       boltHoleSize: boltHoleSizeVal,
       singleBoltArea: boltData.tensileArea, totalBoltArea,
       requiredBoltArea,
@@ -388,9 +391,13 @@ const App: React.FC = () => {
   const handleInputChange = (updatedInputs: FlangeInputs, changedFieldName: string) => {
     let finalInputs = { ...updatedInputs };
 
-    const geometryTriggers = ['insideDia', 'boltCount', 'boltSize', 'g0', 'cClearance', 'shellGapA', 'gasketSeatingWidth'];
-    if (geometryTriggers.includes(changedFieldName)) {
-      finalInputs.gasketPreference = undefined;
+    if (changedFieldName === 'boltSize') {
+      setIsFixedSizeSearch(true);
+    } else {
+      const hubHubTriggers = ['insideDia', 'designPressure', 'designTemp', 'shellMaterial', 'g0'];
+      if (hubHubTriggers.includes(changedFieldName)) {
+        setIsFixedSizeSearch(false);
+      }
     }
 
     const g0Triggers = ['insideDia', 'designTemp', 'tempUnit', 'designPressure', 'pressureUnit', 'shellMaterial', 'jointEfficiency', 'corrosionAllowance'];
@@ -406,77 +413,96 @@ const App: React.FC = () => {
         finalInputs.sbMax = Math.round(mat.minYield * 0.7 * 10) / 10;
         finalInputs.sbMin = Math.round(mat.minYield * 0.4 * 10) / 10;
       }
-      
-      const gTypeLower = finalInputs.gasketType.toLowerCase();
-      if (gTypeLower.includes('grooved')) {
-        finalInputs.sgMax = 380;
-        finalInputs.sgMinS = 140;
-        finalInputs.sgMinO = 97;
-      } else if (gTypeLower.includes('corruga')) {
-        finalInputs.sgMax = 275;
-        finalInputs.sgMinS = 140;
-        finalInputs.sgMinO = 97;
-      } else if (gTypeLower.includes('spiral')) {
-        finalInputs.sgMax = 0;
-        finalInputs.sgMinS = 140;
-        finalInputs.sgMinO = 97;
-      }
-    }
-
-    if (g0Triggers.includes(changedFieldName)) {
-      setIsFixedSizeSearch(false);
-    } else if (changedFieldName === 'boltSize') {
-      setIsFixedSizeSearch(true);
     }
 
     setInputs(finalInputs);
   };
 
   const handleOptimize = () => {
-    const optimizedTargetInputs = { ...inputs, useManualOverride: false, actualBCD: 0, actualOD: 0, manualSeatingID: 0, manualSeatingOD: 0, gasketPreference: undefined };
-    let bestSize = optimizedTargetInputs.boltSize;
-    let bestCount = optimizedTargetInputs.boltCount;
-    let minRequiredLoad = Infinity; 
+    let bestSize = inputs.boltSize;
+    let bestCount = inputs.boltCount;
+    let minPositiveMargin = Infinity; 
+    let minSeatingOD = Infinity;
     let found = false;
 
-    const sizesToSearch = isFixedSizeSearch ? [optimizedTargetInputs.boltSize] : temaBoltData.filter(b => b.size >= 0.75).map(b => b.size);
-    const counts = [4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80];
+    const sizesToSearch = isFixedSizeSearch ? [inputs.boltSize] : temaBoltData.filter(b => b.size >= 0.75).map(b => b.size);
+    const boltCounts = [4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80];
 
     for (const size of sizesToSearch) {
-      for (const count of counts) {
-        const testInputs = { ...optimizedTargetInputs, boltSize: size, boltCount: count };
+      for (const count of boltCounts) {
+        const testInputs = { ...inputs, boltSize: size, boltCount: count };
         const testResults = calculateFullResults(testInputs);
-        const req = Math.max(testResults.wm1, testResults.wm2);
-        if (testResults.totalBoltLoadDesign >= req && testResults.spacingOk) {
-          if (req < minRequiredLoad) {
-            minRequiredLoad = req;
-            bestSize = size;
-            bestCount = count;
-            found = true;
+        
+        const reqLoad = Math.max(testResults.wm1, testResults.wm2);
+        const isAreaSafe = testResults.totalBoltArea >= testResults.requiredBoltArea;
+        const isSpacingOk = testResults.spacingOk;
+
+        if (isAreaSafe && isSpacingOk) {
+          const margin = (testResults.totalBoltLoadDesign - reqLoad) / (reqLoad || 1);
+          const currentSeatingOD = testResults.maxRaisedFace; // BASED ON BCD
+
+          // Selection Logic based on user requests:
+          if (isFixedSizeSearch) {
+            // Rule 2: Size is fixed, find smallest Bolt Count
+            if (!found || count < bestCount) {
+              bestCount = count;
+              minPositiveMargin = margin;
+              found = true;
+            }
+          } else if (inputs.gasketPreference === 'shell' || inputs.useManualOverride) {
+            // Rule 3 & 4: Fixed constraint active, prioritize Smallest Margin
+            if (margin >= 0 && margin < minPositiveMargin) {
+              minPositiveMargin = margin;
+              bestSize = size;
+              bestCount = count;
+              found = true;
+            }
+          } else {
+            // Rule 1 (Default Start): Smallest Gasket Seating OD (BCD based) + Smallest positive Margin
+            // We look for absolute minimum OD, and among ties, smallest margin.
+            if (!found || currentSeatingOD < minSeatingOD || (currentSeatingOD === minSeatingOD && margin < minPositiveMargin)) {
+              minSeatingOD = currentSeatingOD;
+              minPositiveMargin = margin;
+              bestSize = size;
+              bestCount = count;
+              found = true;
+            }
           }
         }
       }
     }
 
     if (found) {
-      setInputs(prev => ({ ...prev, boltSize: bestSize, boltCount: bestCount, useManualOverride: false, actualBCD: 0, actualOD: 0, manualSeatingID: 0, manualSeatingOD: 0, gasketPreference: undefined }));
-      alert(`Optimization Completed!\nBolt Size: ${bestSize}"\nBolt Count: ${bestCount} EA`);
+      setInputs(prev => ({ 
+        ...prev, 
+        boltSize: bestSize, 
+        boltCount: bestCount
+      }));
+      alert(`Optimization Completed!\nBolt Size: ${bestSize}"\nBolt Count: ${bestCount} EA\n${!isFixedSizeSearch ? `Gasket Seating OD: ${minSeatingOD}mm\n` : ''}Margin: ${(minPositiveMargin * 100).toFixed(2)}%`);
     } else {
-      alert(`No valid configuration found.`);
+      alert(`No valid configuration found with current constraints. Try increasing search range or loosening overrides.`);
     }
   };
 
   const handleResetAndOptimize = () => {
     setIsFixedSizeSearch(false);
     const autoG0 = calculateAutoG0(inputs, plateMaterials);
-    // Preserve custom legend during reset
-    const updatedInputs = { ...inputs, g0: autoG0, g1: Math.ceil(autoG0 * 1.3 / 3 + autoG0), useManualOverride: false, actualBCD: 0, actualOD: 0, manualSeatingID: 0, manualSeatingOD: 0, gasketPreference: undefined };
+    const updatedInputs = { 
+      ...inputs, 
+      g0: autoG0, 
+      g1: Math.ceil(autoG0 * 1.3 / 3 + autoG0), 
+      useManualOverride: false, 
+      actualBCD: 0, 
+      actualOD: 0, 
+      manualSeatingID: 0, 
+      manualSeatingOD: 0, 
+      gasketPreference: undefined 
+    };
     setInputs(updatedInputs);
-    handleOptimize();
+    setTimeout(handleOptimize, 100); 
   };
 
   const handleGlobalReset = () => {
-    // Preserve custom legend during global reset
     const reset = { ...initialInputs, customLegendUrl: inputs.customLegendUrl };
     setInputs(reset);
     setIsFixedSizeSearch(false);
@@ -552,13 +578,14 @@ const App: React.FC = () => {
         try {
           const parsedData = JSON.parse(event.target?.result as string);
           if (parsedData.inputs) {
-            // Merge loaded inputs with existing custom legend if loaded file lacks one
             setInputs(prev => ({
               ...parsedData.inputs,
               customLegendUrl: parsedData.inputs.customLegendUrl || prev.customLegendUrl
             }));
           }
           if (parsedData.savedRecords) setSavedRecords(parsedData.savedRecords);
+          if (parsedData.boltMaterials) setBoltMaterials(parsedData.boltMaterials);
+          if (parsedData.plateMaterials) setPlateMaterials(parsedData.plateMaterials);
         } catch (error) { console.error(error); }
       };
       reader.readAsText(file);
@@ -632,7 +659,7 @@ const App: React.FC = () => {
                     <div className="h-[1px] flex-1 bg-white/10"></div>
                   </div>
                   
-                  {/* Bolt Status Card */}
+                  {/* Status Card */}
                   <div className={`p-5 rounded-[1.5rem] border flex items-center gap-6 mb-4 ${isSafe ? 'border-white/10 bg-white/5' : 'border-red-500/20 bg-red-500/5'}`}>
                     <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg shrink-0 ${isSafe ? 'bg-[#00c58d]' : 'bg-[#f83a3a]'}`}>
                       <i className={`fa-solid ${isSafe ? 'fa-check' : 'fa-xmark'} text-white text-xl`}></i>
@@ -653,7 +680,7 @@ const App: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* PCC-1 Summary Card */}
+                  {/* PCC-1 Summary */}
                   {inputs.usePcc1Check && (
                     <div className={`p-5 rounded-[1.5rem] border flex items-center gap-6 mb-4 ${pccStatusInfo.safe ? 'border-white/10 bg-white/5' : 'border-red-500/20 bg-red-500/5'}`}>
                       <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg shrink-0 ${pccStatusInfo.safe ? 'bg-[#00c58d]' : 'bg-[#f83a3a]'}`}>
@@ -670,7 +697,7 @@ const App: React.FC = () => {
 
                   <div className="grid grid-cols-2 gap-4 relative z-10 mt-6">
                     <div className="bg-slate-900/50 p-6 rounded-[1.5rem] border border-white/5 space-y-4 text-center">
-                      <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest h-8 flex items-center justify-center px-2">Allowable Bolt Root Area</div>
+                      <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest h-8 flex items-center justify-center px-2">Total Bolt Root Area</div>
                       <div className="text-lg font-black text-sky-400">{results.totalBoltArea.toFixed(1)} <small className="text-[9px]">mm²</small></div>
                     </div>
                     <div className="bg-slate-900/50 p-6 rounded-[1.5rem] border border-white/5 space-y-4 text-center">

@@ -129,15 +129,15 @@ export const ResultTable: React.FC<Props> = ({ inputs, results, temaBoltData, te
 
           {showDetails && (
             <div className="animate-in fade-in duration-300">
-              <div className={detailTextClass}>GasketOD + (B × 2) + (C × 2) + BoltHole</div>
+              <div className={detailTextClass}>ID + 2*A + 2*IR + 2*N + 2*OR + 1.5*2 + 2*C + BoltHole</div>
               <div className={substitutionTextClass}>
-                {results.gasketOD.toFixed(1)} + (1.5 × 2) + ({results.effectiveC} × 2) + {results.boltHoleSize.toFixed(3)} =
+                {inputs.insideDia} + (2 × {results.shellGapA}) + (2 × {results.innerRingWidth}) + (2 × {inputs.gasketSeatingWidth}) + (2 × {results.outerRingWidth}) + 3 + (2 × {results.effectiveC}) + {results.boltHoleSize.toFixed(0)} =
               </div>
             </div>
           )}
 
           <div className={resultTextClass}>
-            {results.bcdMethod3.toFixed(2)} <small className="text-[10px] text-black">mm</small>
+            {results.bcdMethod3.toFixed(0)} <small className="text-[10px] text-black">mm</small>
           </div>
         </div>
       </div>
@@ -187,14 +187,14 @@ export const ResultTable: React.FC<Props> = ({ inputs, results, temaBoltData, te
             <div>
               <div className="flex justify-between items-baseline">
                 <span className="text-[10px] font-bold text-sky-700">Gasket Seal OD:</span>
-                <span className="text-[11px] font-black text-sky-800 border-b-2 border-sky-200 tabular-nums">{results.seatingOD.toFixed(1)} mm</span>
+                <span className="text-[11px] font-black text-sky-800 border-b-2 border-sky-200 tabular-nums">{results.seatingOD.toFixed(0)} mm</span>
               </div>
             </div>
 
             <div>
               <div className="flex justify-between items-baseline">
                 <span className="text-[10px] font-bold text-sky-700">Gasket Seal ID:</span>
-                <span className="text-[11px] font-black text-sky-800 border-b-2 border-sky-200 tabular-nums">{results.seatingID.toFixed(1)} mm</span>
+                <span className="text-[11px] font-black text-sky-800 border-b-2 border-sky-200 tabular-nums">{results.seatingID.toFixed(0)} mm</span>
               </div>
             </div>
             
