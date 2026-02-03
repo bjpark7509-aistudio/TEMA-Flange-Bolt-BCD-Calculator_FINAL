@@ -215,8 +215,6 @@ const App: React.FC = () => {
     }
   }, [inputs]);
 
-  // Removed useEffect for saving savedRecords to localStorage to ensure reset on REOPEN
-
   useEffect(() => {
     localStorage.setItem('flange_genie_bolt_materials', JSON.stringify(boltMaterials));
   }, [boltMaterials]);
@@ -589,7 +587,7 @@ const App: React.FC = () => {
             </div>
             <div>
               <h1 className="text-2xl font-black text-slate-800 tracking-tighter uppercase">Flange Genie</h1>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">TEMA&ASME&PCC-1 Engineering Calculator</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">TEMA & ASME & PCC-1 Engineering Calculator</p>
             </div>
           </div>
         </header>
