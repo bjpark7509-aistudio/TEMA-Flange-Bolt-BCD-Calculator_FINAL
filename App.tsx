@@ -193,10 +193,8 @@ const App: React.FC = () => {
     return initialInputs;
   });
 
-  const [savedRecords, setSavedRecords] = useState<SavedRecord[]>(() => {
-    const saved = localStorage.getItem('flange_calc_saved_records');
-    return saved ? JSON.parse(saved) : [];
-  });
+  // Updated: Initialize savedRecords as an empty array to ensure list is cleared on reload/reopen
+  const [savedRecords, setSavedRecords] = useState<SavedRecord[]>([]);
   
   const [isFixedSizeSearch, setIsFixedSizeSearch] = useState<boolean>(false);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
@@ -205,6 +203,7 @@ const App: React.FC = () => {
     localStorage.setItem('flange_calc_current_inputs', JSON.stringify(inputs));
   }, [inputs]);
 
+  // Updated: Explicitly clear the localStorage on initialization by syncing the empty state
   useEffect(() => {
     localStorage.setItem('flange_calc_saved_records', JSON.stringify(savedRecords));
   }, [savedRecords]);
