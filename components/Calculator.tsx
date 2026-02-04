@@ -5,7 +5,7 @@ import { FlangeInputs, CalculationResults, BoltMaterial, ShellMaterial, TemaBolt
 interface Props {
   inputs: FlangeInputs;
   onInputChange: (updatedInputs: FlangeInputs, changedFieldName: string) => void;
-  onOptimize?: () => void;
+  onOptimize?: (customInputs?: FlangeInputs) => void;
   onResetOptimize?: () => void;
   onGlobalReset?: () => void;
   onClearRecords?: () => void;
@@ -69,11 +69,6 @@ export const Calculator: React.FC<Props> = ({ inputs, onInputChange, onOptimize,
       nextInputs.sbMax = Math.round(mat.minYield * 0.7 * 10) / 10;
       nextInputs.sbMin = Math.round(mat.minYield * 0.4 * 10) / 10;
     }
-    if (!nextInputs.phiFMax) nextInputs.phiFMax = 0.32;
-    if (!nextInputs.phiGMax) nextInputs.phiGMax = 1;
-    if (!nextInputs.g) nextInputs.g = 0.7;
-    if (!nextInputs.passPartAreaReduction) nextInputs.passPartAreaReduction = 50;
-
     return nextInputs;
   };
 
@@ -106,10 +101,10 @@ export const Calculator: React.FC<Props> = ({ inputs, onInputChange, onOptimize,
     onInputChange(nextInputs, name);
   };
 
-  const handleManualStart = () => {
-    const nextInputs = { ...inputs, ...localManualValues };
-    onInputChange(nextInputs, 'manual_start_calculation');
-    onOptimize?.();
+  // Improved trigger to ensure local UI changes are included in optimization
+  const handleTriggerOptimize = () => {
+    const combinedInputs = { ...inputs, ...localManualValues };
+    onOptimize?.(combinedInputs);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -172,7 +167,7 @@ export const Calculator: React.FC<Props> = ({ inputs, onInputChange, onOptimize,
     onInputChange(nextInputs, 'reset');
   };
 
-  const inputClass = "w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500 transition-all text-sm";
+  const inputClass = "w-full px-3 py-2 bg-white border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500 transition-all text-sm font-mono";
   const disabledInputClass = "w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-gray-400 cursor-not-allowed text-sm opacity-60";
   const selectClass = "px-2 py-2 bg-gray-50 border border-gray-300 rounded-md focus:ring-2 focus:ring-sky-500 transition-all text-xs font-bold";
   const labelClass = "block text-[11px] font-bold text-gray-500 mb-1 uppercase tracking-wider";
@@ -308,7 +303,7 @@ export const Calculator: React.FC<Props> = ({ inputs, onInputChange, onOptimize,
           <h3 className="text-xs font-black text-slate-500 border-l-4 border-slate-400 pl-2 mb-3 uppercase tracking-tighter flex justify-between items-center">
             <span>Shell & Hub Geometry</span>
             <div className="flex items-center gap-1">
-              <button onClick={onOptimize} className="text-[9px] bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-full font-black flex items-center gap-1 transition-all shadow-sm"><i className="fa-solid fa-play text-[7px]"></i> START</button>
+              <button onClick={handleTriggerOptimize} className="text-[9px] bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-full font-black flex items-center gap-1 transition-all shadow-sm"><i className="fa-solid fa-play text-[7px]"></i> START</button>
               <button onClick={onResetOptimize} className="text-[9px] bg-slate-600 hover:bg-slate-700 text-white px-3 py-1 rounded-full font-black flex items-center gap-1 transition-all shadow-sm"><i className="fa-solid fa-rotate-left text-[7px]"></i> F-RESET</button>
             </div>
           </h3>
@@ -399,7 +394,7 @@ export const Calculator: React.FC<Props> = ({ inputs, onInputChange, onOptimize,
                 <div className="pt-2">
                   <button 
                     type="button" 
-                    onClick={handleManualStart} 
+                    onClick={handleTriggerOptimize} 
                     className="w-full py-3 rounded-2xl text-[12px] font-black uppercase tracking-widest bg-indigo-600 hover:bg-indigo-700 text-white transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
                   >
                     <i className="fa-solid fa-play text-[10px]"></i> START
