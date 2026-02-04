@@ -500,12 +500,14 @@ const App: React.FC = () => {
     setEditingRecordId(null);
   };
 
-  const handleClearRecords = () => {
-     if(window.confirm('Calculation Summary List에 있는 모든 데이터를 삭제하시겠습니까?')) {
-        setSavedRecords([]);
-        setEditingRecordId(null);
-     }
-  };
+  const handleClearRecords = useCallback((e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    if (window.confirm('Calculation Summary List에 있는 모든 데이터를 삭제하시겠습니까?')) {
+      setSavedRecords([]);
+      setEditingRecordId(null);
+      localStorage.removeItem('flange_calc_saved_records');
+    }
+  }, []);
 
   const handleSaveToList = () => {
     const newRecord: SavedRecord = {
@@ -740,7 +742,7 @@ const App: React.FC = () => {
               <div className="flex flex-wrap items-center justify-center md:justify-end gap-2">
                 <button onClick={handleSaveToList} className="bg-[#e12e2e] hover:bg-red-700 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg flex items-center gap-2"><i className="fa-solid fa-floppy-disk"></i> SAVE</button>
                 <button onClick={handleEditSave} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg flex items-center gap-2 border ${editingRecordId ? 'bg-sky-600 border-sky-400 text-white' : 'bg-[#f1f5f9] border-[#e2e8f0] text-[#94a3b8] cursor-not-allowed'}`}><i className="fa-solid fa-file-pen"></i> EDIT SAVE</button>
-                <button onClick={handleClearRecords} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg"><i className="fa-solid fa-trash-can"></i> ALL DELETE</button>
+                <button onClick={(e) => handleClearRecords(e)} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg"><i className="fa-solid fa-trash-can"></i> ALL DELETE</button>
                 <button onClick={exportToExcel} className="bg-slate-800 hover:bg-black text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border border-white/10 shadow-lg"><i className="fa-solid fa-file-excel"></i> PRINT</button>
                 <button onClick={handleSaveAll} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg"><i className="fa-solid fa-floppy-disk"></i> OUTPUT</button>
               </div>
