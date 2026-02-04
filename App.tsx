@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Calculator } from './components/Calculator';
 import { ResultTable } from './components/ResultTable';
 import { FlangeDiagram } from './components/FlangeDiagram';
@@ -148,6 +148,8 @@ const initialInputs: FlangeInputs = {
 };
 
 const App: React.FC = () => {
+  const importFileInputRef = useRef<HTMLInputElement>(null);
+  
   const [boltMaterials, setBoltMaterials] = useState<BoltMaterial[]>(() => {
     const saved = localStorage.getItem('flange_calc_bolt_materials');
     return saved ? JSON.parse(saved) : INITIAL_BOLT_MATERIALS;
@@ -190,14 +192,22 @@ const App: React.FC = () => {
     }
     return initialInputs;
   });
+
+  const [savedRecords, setSavedRecords] = useState<SavedRecord[]>(() => {
+    const saved = localStorage.getItem('flange_calc_saved_records');
+    return saved ? JSON.parse(saved) : [];
+  });
   
   const [isFixedSizeSearch, setIsFixedSizeSearch] = useState<boolean>(false);
-  const [savedRecords, setSavedRecords] = useState<SavedRecord[]>([]);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
   useEffect(() => {
     localStorage.setItem('flange_calc_current_inputs', JSON.stringify(inputs));
   }, [inputs]);
+
+  useEffect(() => {
+    localStorage.setItem('flange_calc_saved_records', JSON.stringify(savedRecords));
+  }, [savedRecords]);
 
   useEffect(() => {
     localStorage.setItem('flange_calc_bolt_materials', JSON.stringify(boltMaterials));
@@ -359,7 +369,12 @@ const App: React.FC = () => {
     const reducedPassArea = (inputs.passPartAreaReduction / 100) * inputs.passPartitionWidth * inputs.passPartitionLength;
     const totalAg = ringArea + reducedPassArea;
     const sbSelCalc = totalBoltRootArea > 0 ? (inputs.sgT * totalAg) / totalBoltRootArea : 0;
-    const sbSelFinal = Math.min(Math.max(Math.min(sbSelCalc, inputs.sbMax || Infinity), inputs.sbMin || 0), inputs.sfMax || Infinity);
+    
+    const valA = Math.min(sbSelCalc, inputs.sbMax || Infinity);
+    const valB = Math.max(valA, inputs.sbMin || 0);
+    const valC = Math.min(valB, inputs.sfMax || Infinity);
+    const sbSelFinal = valC;
+    
     const pMpa = toMpa(inputs.designPressure, inputs.pressureUnit);
     const step5Threshold = totalBoltRootArea > 0 ? inputs.sgMinS * (totalAg / totalBoltRootArea) : 0;
     const step6Numerator = (inputs.sgMinO * totalAg) + ((Math.PI / 4) * pMpa * Math.pow(results.seatingID, 2));
@@ -408,7 +423,6 @@ const App: React.FC = () => {
     let minDimensionScore = Infinity;
     let found = false;
 
-    // Search space definition
     const sizesToSearch = isFixedSizeSearch ? [inputs.boltSize] : temaBoltData.filter(b => b.size >= 0.75).map(b => b.size);
     const boltCounts = [4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80];
 
@@ -426,16 +440,13 @@ const App: React.FC = () => {
           const currentBcd = testResults.finalBCD;
           const currentSeatingOD = testResults.maxRaisedFace; 
 
-          // Logic Selection based on the 4 Rules
           if (isFixedSizeSearch) {
-            // Rule 2: Size fixed -> Find smallest Bolt Count (minimal positive margin)
             if (!found || count < bestCount) {
               bestCount = count;
               minMargin = margin;
               found = true;
             }
           } else if (inputs.gasketPreference === 'shell' || inputs.useManualOverride) {
-            // Rule 3 & 4: Constraints active -> Smallest positive MARGIN
             if (margin >= 0 && margin < minMargin) {
               minMargin = margin;
               bestSize = size;
@@ -443,7 +454,6 @@ const App: React.FC = () => {
               found = true;
             }
           } else {
-            // Rule 1: Global Start -> Smallest BCD/SeatingOD first, then smallest positive Margin.
             const dimensionScore = currentBcd + currentSeatingOD;
             if (!found || dimensionScore < minDimensionScore || (dimensionScore === minDimensionScore && margin < minMargin)) {
               minDimensionScore = dimensionScore;
@@ -484,12 +494,18 @@ const App: React.FC = () => {
   };
 
   const handleGlobalReset = () => {
-    setInputs(initialInputs);
+    const preservedLegendUrl = inputs.customLegendUrl;
+    setInputs({ ...initialInputs, customLegendUrl: preservedLegendUrl });
     setIsFixedSizeSearch(false);
     setEditingRecordId(null);
   };
 
-  const handleClearRecords = () => setSavedRecords([]);
+  const handleClearRecords = () => {
+     if(window.confirm('Calculation Summary List에 있는 모든 데이터를 삭제하시겠습니까?')) {
+        setSavedRecords([]);
+        setEditingRecordId(null);
+     }
+  };
 
   const handleSaveToList = () => {
     const newRecord: SavedRecord = {
@@ -537,17 +553,60 @@ const App: React.FC = () => {
   };
 
   const handleSaveAll = () => {
-    const data = { inputs, savedRecords, boltMaterials, plateMaterials, temaBoltData, tensioningData, gasketTypes, ringStandards };
+    const data = { 
+      inputs, 
+      savedRecords, 
+      boltMaterials, 
+      plateMaterials, 
+      temaBoltData, 
+      tensioningData, 
+      gasketTypes, 
+      ringStandards,
+      timestamp: Date.now()
+    };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.href = url; link.download = `FlangeData_${Date.now()}.json`; link.click(); URL.revokeObjectURL(url);
+    link.href = url; link.download = `FlangeProject_${inputs.itemNo || 'Unsaved'}_${Date.now()}.json`; link.click(); URL.revokeObjectURL(url);
+  };
+
+  const handleImportAll = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string);
+        
+        // Critical state restoration
+        if (data.inputs) setInputs(data.inputs);
+        if (data.savedRecords && Array.isArray(data.savedRecords)) {
+          setSavedRecords(data.savedRecords);
+        }
+        
+        // Library restoration
+        if (data.boltMaterials) setBoltMaterials(data.boltMaterials);
+        if (data.plateMaterials) setPlateMaterials(data.plateMaterials);
+        if (data.temaBoltData) setTemaBoltData(data.temaBoltData);
+        if (data.tensioningData) setTensioningData(data.tensioningData);
+        if (data.gasketTypes) setGasketTypes(data.gasketTypes);
+        if (data.ringStandards) setRingStandards(data.ringStandards);
+        
+        setEditingRecordId(null);
+        alert('Project and ITEM LIST Reloaded Successfully!');
+      } catch (err) {
+        console.error(err);
+        alert('Failed to load project file. Please check if the file is a valid JSON output from this tool.');
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = ''; 
   };
 
   const exportToExcel = () => {
     if (savedRecords.length === 0) return;
     const headers = ['ITEM NO', 'PART', 'FLG OD', 'FLG ID', 'FLG BCD', 'GSK OD', 'GSK ID', 'g0', 'g1', 'BOLT SIZE', 'BOLT EA', 'MATERIAL', 'TYPE'];
-    const rows = savedRecords.map(r => [r.itemNo, r.part, r.flangeOd, r.id_mm, r.bcd, r.gasketOd, r.gasketId, r.g0, r.g1, r.boltSize, r.boltEa, r.boltMaterial, r.gasketType]);
+    const rows = savedRecords.map(r => [r.itemNo, r.part, r.flangeOd, r.id_mm, r.bcd, r.gasketOd, r.id_mm, r.g0, r.g1, r.boltSize, r.boltEa, r.boltMaterial, r.gasketType]);
     const csv = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
     const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -557,6 +616,14 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 py-8 px-4 font-sans text-slate-900">
+      <input 
+        type="file" 
+        ref={importFileInputRef} 
+        onChange={handleImportAll} 
+        accept=".json" 
+        className="hidden" 
+      />
+      
       <div className="max-w-7xl mx-auto space-y-8">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
           <div className="flex items-center gap-4">
@@ -575,7 +642,7 @@ const App: React.FC = () => {
             <Calculator 
               inputs={inputs} onInputChange={handleInputChange} onOptimize={handleOptimize} 
               onResetOptimize={handleResetAndOptimize} onGlobalReset={handleGlobalReset}
-              onClearRecords={handleClearRecords} onLoad={handleSaveAll}
+              onClearRecords={handleClearRecords} onLoad={() => importFileInputRef.current?.click()}
               results={results} boltMaterials={boltMaterials} plateMaterials={plateMaterials}
               temaBoltData={temaBoltData} gasketTypes={gasketTypes} ringStandards={ringStandards}
             />
@@ -588,7 +655,7 @@ const App: React.FC = () => {
                 <div className="p-8 pb-4 flex justify-between items-center relative z-10">
                   <div className="flex items-center gap-3">
                     <div className="w-6 h-6 bg-sky-600 rounded flex items-center justify-center"><i className="fa-solid fa-chart-simple text-white text-[10px]"></i></div>
-                    <h2 className="text-sm font-black text-slate-800 leading-tight uppercase tracking-tight">PREVIEW</h2>
+                    <h2 className="text-sm font-black text-slate-800 leading-tight uppercase tracking-tight">REPORT</h2>
                   </div>
                   <div className="flex gap-2">
                     <button onClick={handleSaveToList} className="bg-[#e12e2e] hover:bg-red-700 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg flex items-center gap-2"><i className="fa-solid fa-floppy-disk"></i> SAVE</button>
@@ -601,13 +668,49 @@ const App: React.FC = () => {
                 </div>
                 <div className="bg-[#0f172a] mx-3 mb-3 p-8 rounded-[2rem] border border-slate-800 shadow-2xl flex flex-col text-white relative">
                   <div className="flex items-center gap-4 mb-6"><div className="h-[1px] flex-1 bg-white/10"></div><span className="text-[10px] font-black text-slate-500 tracking-[0.3em] uppercase">LOAD ANALYSIS</span><div className="h-[1px] flex-1 bg-white/10"></div></div>
-                  <div className={`p-5 rounded-[1.5rem] border flex items-center gap-6 mb-4 ${isSafe ? 'border-white/10 bg-white/5' : 'border-red-500/20 bg-red-500/5'}`}>
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg shrink-0 ${isSafe ? 'bg-[#00c58d]' : 'bg-[#f83a3a]'}`}><i className={`fa-solid ${isSafe ? 'fa-check' : 'fa-xmark'} text-white text-xl`}></i></div>
-                    <div className="flex-1 grid grid-cols-2 gap-4">
-                      <div className="space-y-0.5"><div className="text-[10px] font-bold text-[#525f7a] uppercase tracking-widest">STATUS</div><div className={`text-base font-black uppercase tracking-tight ${isSafe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>{isSafe ? 'ACCEPTABLE' : 'RECHECK LOAD'}</div></div>
-                      <div className="space-y-0.5 text-right"><div className="text-[10px] font-bold text-[#525f7a] uppercase tracking-widest">MARGIN</div><div className={`text-2xl font-black tracking-tighter ${isSafe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>{marginPercent > 0 ? '+' : ''}{marginPercent.toFixed(1)}%</div></div>
+                  
+                  <div className="p-4 rounded-3xl border border-slate-800 bg-[#161e31] flex items-center gap-5 mb-3 transition-all">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shrink-0 ${isSafe ? 'bg-[#00c58d]' : 'bg-[#f83a3a]'}`}>
+                      <i className={`fa-solid ${isSafe ? 'fa-check' : 'fa-xmark'} text-white text-lg`}></i>
+                    </div>
+                    <div className="flex-1 flex justify-between items-center">
+                      <div className="flex flex-col">
+                        <span className="text-[9px] font-bold text-[#525f7a] uppercase tracking-widest">STATUS</span>
+                        <span className={`text-sm font-black uppercase tracking-tight ${isSafe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>
+                          {isSafe ? 'ACCEPTABLE' : 'RECHECK LOAD'}
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <span className="text-[9px] font-bold text-[#525f7a] uppercase tracking-widest">MARGIN</span>
+                        <span className={`text-xl font-black tracking-tighter ${isSafe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>
+                          {marginPercent > 0 ? '+' : ''}{marginPercent.toFixed(1)}%
+                        </span>
+                      </div>
                     </div>
                   </div>
+
+                  {inputs.usePcc1Check && (
+                    <div className="p-4 rounded-3xl border border-slate-800 bg-[#161e31] flex items-center gap-5 mb-3 transition-all animate-in fade-in slide-in-from-top-1 duration-300">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shrink-0 ${pccStatusInfo.safe ? 'bg-[#00c58d]' : 'bg-[#f83a3a]'}`}>
+                        <i className={`fa-solid ${pccStatusInfo.safe ? 'fa-check' : 'fa-xmark'} text-white text-lg`}></i>
+                      </div>
+                      <div className="flex-1 flex justify-between items-center">
+                        <div className="flex flex-col">
+                          <span className="text-[9px] font-bold text-[#525f7a] uppercase tracking-widest">PCC-1 SUMMARY</span>
+                          <span className={`text-sm font-black uppercase tracking-tight ${pccStatusInfo.safe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>
+                            {pccStatusInfo.safe ? 'ACCEPTABLE' : 'RECHECK PCC'}
+                          </span>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="text-[9px] font-bold text-[#525f7a] uppercase tracking-widest">SELECTED Sb</span>
+                          <span className={`text-xl font-black tracking-tighter ${pccStatusInfo.safe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>
+                            {pccStatusInfo.sbSelFinal.toFixed(1)}<small className="text-[10px] ml-1">MPa</small>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-4 relative z-10 mt-6">
                     <div className="bg-slate-900/50 p-6 rounded-[1.5rem] border border-white/5 space-y-4 text-center"><div className="text-[8px] font-black text-slate-500 uppercase tracking-widest h-8 flex items-center justify-center px-2">Total Bolt Root Area</div><div className="text-lg font-black text-sky-400">{results.totalBoltArea.toFixed(1)} <small className="text-[9px]">mm²</small></div></div>
                     <div className="bg-slate-900/50 p-6 rounded-[1.5rem] border border-white/5 space-y-4 text-center"><div className="text-[8px] font-black text-slate-500 uppercase tracking-widest h-8 flex items-center justify-center px-2">Required Bolt Root Area</div><div className="text-lg font-black text-pink-500">{results.requiredBoltArea.toFixed(1)} <small className="text-[9px]">mm²</small></div></div>
@@ -630,21 +733,49 @@ const App: React.FC = () => {
 
         {savedRecords.length > 0 && (
           <section className="bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden">
-            <div className="bg-slate-900 px-6 py-4 flex justify-between items-center">
-              <h3 className="text-lg font-black text-white uppercase tracking-tighter">Calculation Summary List</h3>
-              <div className="flex items-center gap-2">
-                <button onClick={handleClearRecords} className="bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white px-4 py-1 rounded text-[9px] font-black uppercase tracking-widest border border-red-500/50"><i className="fa-solid fa-trash-can"></i> CLEAR ALL</button>
-                <button onClick={exportToExcel} className="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded text-[9px] font-black uppercase tracking-widest transition-all"><i className="fa-solid fa-file-excel"></i> PRINT</button>
-                <button onClick={handleSaveAll} className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2"><i className="fa-solid fa-floppy-disk"></i> OUTPUT</button>
+            <div className="bg-[#0f172a] px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+              <div className="flex items-center gap-4">
+                <h3 className="text-lg font-black text-white uppercase tracking-tighter">Calculation Summary List</h3>
+              </div>
+              <div className="flex flex-wrap items-center justify-center md:justify-end gap-2">
+                <button onClick={handleSaveToList} className="bg-[#e12e2e] hover:bg-red-700 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg flex items-center gap-2"><i className="fa-solid fa-floppy-disk"></i> SAVE</button>
+                <button onClick={handleEditSave} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg flex items-center gap-2 border ${editingRecordId ? 'bg-sky-600 border-sky-400 text-white' : 'bg-[#f1f5f9] border-[#e2e8f0] text-[#94a3b8] cursor-not-allowed'}`}><i className="fa-solid fa-file-pen"></i> EDIT SAVE</button>
+                <button onClick={handleClearRecords} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg"><i className="fa-solid fa-trash-can"></i> ALL DELETE</button>
+                <button onClick={exportToExcel} className="bg-slate-800 hover:bg-black text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 border border-white/10 shadow-lg"><i className="fa-solid fa-file-excel"></i> PRINT</button>
+                <button onClick={handleSaveAll} className="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-lg"><i className="fa-solid fa-floppy-disk"></i> OUTPUT</button>
               </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-[10px] font-bold text-center">
-                <thead className="bg-slate-50"><tr><th className="border p-2">ITEM NO</th><th className="border p-2">PART</th><th className="border p-2">OD</th><th className="border p-2">ID</th><th className="border p-2">BCD</th><th className="border p-2">SIZE</th><th className="border p-2">EA</th><th className="border p-2">ACTION</th></tr></thead>
+                <thead className="bg-slate-50 border-b">
+                  <tr>
+                    <th className="border-x p-3 uppercase text-slate-500 tracking-tight">ITEM NO</th>
+                    <th className="border-x p-3 uppercase text-slate-500 tracking-tight">PART</th>
+                    <th className="border-x p-3 uppercase text-slate-500 tracking-tight">OD</th>
+                    <th className="border-x p-3 uppercase text-slate-500 tracking-tight">ID</th>
+                    <th className="border-x p-3 uppercase text-slate-500 tracking-tight">BCD</th>
+                    <th className="border-x p-3 uppercase text-slate-500 tracking-tight">SIZE</th>
+                    <th className="border-x p-3 uppercase text-slate-500 tracking-tight">EA</th>
+                    <th className="border-x p-3 uppercase text-slate-500 tracking-tight">MATERIAL</th>
+                    <th className="border-x p-3 uppercase text-slate-500 tracking-tight">ACTION</th>
+                  </tr>
+                </thead>
                 <tbody>{savedRecords.map(record => (
-                  <tr key={record.id} className={editingRecordId === record.id ? 'bg-indigo-50' : 'hover:bg-slate-50'}>
-                    <td className="border p-2">{record.itemNo}</td><td className="border p-2">{record.part}</td><td className="border p-2">{record.flangeOd}</td><td className="border p-2">{record.id_mm}</td><td className="border p-2">{record.bcd}</td><td className="border p-2">{record.boltSize}</td><td className="border p-2">{record.boltEa}</td>
-                    <td className="border p-2"><div className="flex gap-2 justify-center"><button onClick={() => editRecord(record)} className="text-sky-600"><i className="fa-solid fa-pen-to-square"></i></button><button onClick={() => removeRecord(record.id)} className="text-red-600"><i className="fa-solid fa-trash-can"></i></button></div></td>
+                  <tr key={record.id} className={`${editingRecordId === record.id ? 'bg-indigo-50/50' : 'hover:bg-slate-50'} transition-colors border-b`}>
+                    <td className="border-x p-3 font-mono">{record.itemNo}</td>
+                    <td className="border-x p-3">{record.part}</td>
+                    <td className="border-x p-3 font-mono">{record.flangeOd}</td>
+                    <td className="border-x p-3 font-mono">{record.id_mm}</td>
+                    <td className="border-x p-3 font-mono">{record.bcd}</td>
+                    <td className="border-x p-3 font-mono">{record.boltSize}</td>
+                    <td className="border-x p-3 font-mono">{record.boltEa}</td>
+                    <td className="border-x p-3 font-black text-slate-600">{record.boltMaterial}</td>
+                    <td className="border-x p-3">
+                      <div className="flex gap-3 justify-center">
+                        <button onClick={() => editRecord(record)} className="text-sky-600 hover:text-sky-800 transition-colors"><i className="fa-solid fa-pen-to-square"></i></button>
+                        <button onClick={() => removeRecord(record.id)} className="text-red-600 hover:text-red-800 transition-colors"><i className="fa-solid fa-trash-can"></i></button>
+                      </div>
+                    </td>
                   </tr>
                 ))}</tbody>
               </table>
