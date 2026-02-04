@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Calculator } from './components/Calculator';
 import { ResultTable } from './components/ResultTable';
@@ -8,7 +9,7 @@ import { CalculationResults, FlangeInputs, BoltMaterial, ShellMaterial, TemaBolt
 
 interface SavedRecord {
   id: string;
-  originalInputs: FlangeInputs; // Store original inputs to allow full restoration
+  originalInputs: FlangeInputs;
   itemNo: string;
   part: string;
   id_mm: number;
@@ -26,7 +27,6 @@ interface SavedRecord {
   gasketId: number;
   gasketRid: number;
   gasketType: string;
-  // PCC-1 Fields for Export
   usePcc1: boolean;
   sgT: number;
   sgMinS: number;
@@ -94,7 +94,6 @@ const calculateAutoG0 = (currentInputs: Partial<FlangeInputs>, plateMaterials: S
   return Math.ceil(autoG0);
 };
 
-// Initial state for FlangeInputs
 const initialInputs: FlangeInputs = {
   itemNo: 'GEN-001',
   partName: 'CHANNEL SIDE',
@@ -150,37 +149,37 @@ const initialInputs: FlangeInputs = {
 
 const App: React.FC = () => {
   const [boltMaterials, setBoltMaterials] = useState<BoltMaterial[]>(() => {
-    const saved = localStorage.getItem('flange_genie_bolt_materials');
+    const saved = localStorage.getItem('flange_calc_bolt_materials');
     return saved ? JSON.parse(saved) : INITIAL_BOLT_MATERIALS;
   });
   
   const [plateMaterials, setPlateMaterials] = useState<ShellMaterial[]>(() => {
-    const saved = localStorage.getItem('flange_genie_plate_materials');
+    const saved = localStorage.getItem('flange_calc_plate_materials');
     return saved ? JSON.parse(saved) : INITIAL_SHELL_MATERIALS;
   });
 
   const [temaBoltData, setTemaBoltData] = useState<TemaBoltInfo[]>(() => {
-    const saved = localStorage.getItem('flange_genie_tema_bolt_data');
+    const saved = localStorage.getItem('flange_calc_tema_bolt_data');
     return saved ? JSON.parse(saved) : INITIAL_TEMA_BOLT_DATA;
   });
 
   const [tensioningData, setTensioningData] = useState<TensioningInfo[]>(() => {
-    const saved = localStorage.getItem('flange_genie_tensioning_data');
+    const saved = localStorage.getItem('flange_calc_tensioning_data');
     return saved ? JSON.parse(saved) : INITIAL_TENSIONING_DATA;
   });
 
   const [gasketTypes, setGasketTypes] = useState<GasketType[]>(() => {
-    const saved = localStorage.getItem('flange_genie_gasket_types');
+    const saved = localStorage.getItem('flange_calc_gasket_types');
     return saved ? JSON.parse(saved) : INITIAL_GASKET_TYPES;
   });
 
   const [ringStandards, setRingStandards] = useState<RingStandard[]>(() => {
-    const saved = localStorage.getItem('flange_genie_ring_standards');
+    const saved = localStorage.getItem('flange_calc_ring_standards');
     return saved ? JSON.parse(saved) : INITIAL_RING_STANDARDS;
   });
 
   const [inputs, setInputs] = useState<FlangeInputs>(() => {
-    const savedInputs = localStorage.getItem('flange_genie_current_inputs');
+    const savedInputs = localStorage.getItem('flange_calc_current_inputs');
     if (savedInputs) {
       try {
         const parsed = JSON.parse(savedInputs);
@@ -188,10 +187,6 @@ const App: React.FC = () => {
       } catch (e) {
         console.error("Failed to parse saved inputs", e);
       }
-    }
-    const savedLegend = localStorage.getItem('flange_genie_custom_legend');
-    if (savedLegend) {
-      return { ...initialInputs, customLegendUrl: savedLegend };
     }
     return initialInputs;
   });
@@ -201,36 +196,31 @@ const App: React.FC = () => {
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
   useEffect(() => {
-    localStorage.setItem('flange_genie_current_inputs', JSON.stringify(inputs));
-    if (inputs.customLegendUrl) {
-      localStorage.setItem('flange_genie_custom_legend', inputs.customLegendUrl);
-    } else {
-      localStorage.removeItem('flange_genie_custom_legend');
-    }
+    localStorage.setItem('flange_calc_current_inputs', JSON.stringify(inputs));
   }, [inputs]);
 
   useEffect(() => {
-    localStorage.setItem('flange_genie_bolt_materials', JSON.stringify(boltMaterials));
+    localStorage.setItem('flange_calc_bolt_materials', JSON.stringify(boltMaterials));
   }, [boltMaterials]);
 
   useEffect(() => {
-    localStorage.setItem('flange_genie_plate_materials', JSON.stringify(plateMaterials));
+    localStorage.setItem('flange_calc_plate_materials', JSON.stringify(plateMaterials));
   }, [plateMaterials]);
 
   useEffect(() => {
-    localStorage.setItem('flange_genie_tema_bolt_data', JSON.stringify(temaBoltData));
+    localStorage.setItem('flange_calc_tema_bolt_data', JSON.stringify(temaBoltData));
   }, [temaBoltData]);
 
   useEffect(() => {
-    localStorage.setItem('flange_genie_tensioning_data', JSON.stringify(tensioningData));
+    localStorage.setItem('flange_calc_tensioning_data', JSON.stringify(tensioningData));
   }, [tensioningData]);
 
   useEffect(() => {
-    localStorage.setItem('flange_genie_gasket_types', JSON.stringify(gasketTypes));
+    localStorage.setItem('flange_calc_gasket_types', JSON.stringify(gasketTypes));
   }, [gasketTypes]);
 
   useEffect(() => {
-    localStorage.setItem('flange_genie_ring_standards', JSON.stringify(ringStandards));
+    localStorage.setItem('flange_calc_ring_standards', JSON.stringify(ringStandards));
   }, [ringStandards]);
 
   const calculateFullResults = useCallback((currentInputs: FlangeInputs): CalculationResults => {
@@ -269,7 +259,6 @@ const App: React.FC = () => {
     autoSeatingOD = Math.ceil(autoSeatingOD);
     const autoSeatingID = Math.ceil(autoSeatingOD - (2 * currentInputs.gasketSeatingWidth));
 
-    // Support logic for Manual Override values > 0: reflecting only non-zero manual values as requested
     const seatingID = (currentInputs.useManualOverride && currentInputs.manualSeatingID !== 0) ? currentInputs.manualSeatingID : autoSeatingID;
     const seatingOD = (currentInputs.useManualOverride && currentInputs.manualSeatingOD !== 0) ? currentInputs.manualSeatingOD : autoSeatingOD;
     
@@ -409,14 +398,6 @@ const App: React.FC = () => {
        finalInputs.g1 = Math.ceil(autoG0 * 1.3 / 3 + autoG0);
     }
 
-    if (changedFieldName === 'boltMaterial' || changedFieldName === 'gasketType') {
-      const mat = boltMaterials.find(m => m.id === finalInputs.boltMaterial);
-      if (mat && mat.minYield) {
-        finalInputs.sbMax = Math.round(mat.minYield * 0.7 * 10) / 10;
-        finalInputs.sbMin = Math.round(mat.minYield * 0.4 * 10) / 10;
-      }
-    }
-
     setInputs(finalInputs);
   };
 
@@ -424,15 +405,10 @@ const App: React.FC = () => {
     let bestSize = inputs.boltSize;
     let bestCount = inputs.boltCount;
     let minMargin = Infinity; 
-    let minBcd = Infinity;
+    let minDimensionScore = Infinity;
     let found = false;
 
-    // Rules Summary:
-    // 1. START click -> Minimize BCD & Seating OD (BCD-based), satisfy Req Area & Spacing, smallest positive Margin.
-    // 2. After Size Change -> Lock Size, find smallest Bolt Count satisfying requirements.
-    // 3. Shell ID active -> Fixed Gasket Seal OD, find optimal Size/Count with smallest positive Margin.
-    // 4. Manual Input active -> Respect non-zero values, optimize remaining with smallest positive Margin.
-
+    // Search space definition
     const sizesToSearch = isFixedSizeSearch ? [inputs.boltSize] : temaBoltData.filter(b => b.size >= 0.75).map(b => b.size);
     const boltCounts = [4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80];
 
@@ -445,20 +421,21 @@ const App: React.FC = () => {
         const isSpacingOk = testResults.spacingOk;
 
         if (isAreaSafe && isSpacingOk) {
-          const margin = (testResults.totalBoltLoadDesign - Math.max(testResults.wm1, testResults.wm2)) / (Math.max(testResults.wm1, testResults.wm2) || 1);
+          const loadReq = Math.max(testResults.wm1, testResults.wm2);
+          const margin = (testResults.totalBoltLoadDesign - loadReq) / (loadReq || 1);
           const currentBcd = testResults.finalBCD;
-          const currentSeatingOD = testResults.maxRaisedFace; // BASED ON BCD
+          const currentSeatingOD = testResults.maxRaisedFace; 
 
-          // Prioritization Logic
+          // Logic Selection based on the 4 Rules
           if (isFixedSizeSearch) {
-            // Rule 2: Fixed Size - Priority is smallest Count (which usually corresponds to smallest positive margin)
+            // Rule 2: Size fixed -> Find smallest Bolt Count (minimal positive margin)
             if (!found || count < bestCount) {
               bestCount = count;
               minMargin = margin;
               found = true;
             }
           } else if (inputs.gasketPreference === 'shell' || inputs.useManualOverride) {
-            // Rule 3 & 4: Constraints active - Priority is smallest positive Margin on valid configuration
+            // Rule 3 & 4: Constraints active -> Smallest positive MARGIN
             if (margin >= 0 && margin < minMargin) {
               minMargin = margin;
               bestSize = size;
@@ -466,10 +443,10 @@ const App: React.FC = () => {
               found = true;
             }
           } else {
-            // Rule 1: Global Start - Priority 1: Smallest BCD/SeatingOD. Priority 2: Smallest Margin.
-            const totalDimensionScore = currentBcd + currentSeatingOD;
-            if (!found || totalDimensionScore < minBcd || (totalDimensionScore === minBcd && margin < minMargin)) {
-              minBcd = totalDimensionScore;
+            // Rule 1: Global Start -> Smallest BCD/SeatingOD first, then smallest positive Margin.
+            const dimensionScore = currentBcd + currentSeatingOD;
+            if (!found || dimensionScore < minDimensionScore || (dimensionScore === minDimensionScore && margin < minMargin)) {
+              minDimensionScore = dimensionScore;
               minMargin = margin;
               bestSize = size;
               bestCount = count;
@@ -481,14 +458,10 @@ const App: React.FC = () => {
     }
 
     if (found) {
-      setInputs(prev => ({ 
-        ...prev, 
-        boltSize: bestSize, 
-        boltCount: bestCount
-      }));
-      alert(`Optimization Completed!\nBolt Size: ${bestSize}"\nBolt Count: ${bestCount} EA\nMargin: ${(minMargin * 100).toFixed(2)}%`);
+      setInputs(prev => ({ ...prev, boltSize: bestSize, boltCount: bestCount }));
+      alert(`Optimization Completed!\nSize: ${bestSize}"\nCount: ${bestCount} EA\nMargin: ${(minMargin * 100).toFixed(2)}%`);
     } else {
-      alert(`No valid configuration found. Consider increasing bolt count or range.`);
+      alert(`No valid configuration found. Consider relaxing constraints.`);
     }
   };
 
@@ -511,8 +484,7 @@ const App: React.FC = () => {
   };
 
   const handleGlobalReset = () => {
-    const reset = { ...initialInputs, customLegendUrl: inputs.customLegendUrl };
-    setInputs(reset);
+    setInputs(initialInputs);
     setIsFixedSizeSearch(false);
     setEditingRecordId(null);
   };
@@ -553,13 +525,10 @@ const App: React.FC = () => {
     if (!editingRecordId) return;
     setSavedRecords(prev => prev.map(rec => rec.id === editingRecordId ? { ...rec, originalInputs: { ...inputs }, itemNo: inputs.itemNo || '-', part: inputs.partName || '-', id_mm: inputs.insideDia, g0: inputs.g0, g1: inputs.g1, bcd: Math.round(results.finalBCD), flangeOd: Math.round(results.finalOD), boltSize: `${inputs.boltSize}"`, boltEa: inputs.boltCount, boltMaterial: inputs.boltMaterial } : rec));
     setEditingRecordId(null);
-    alert('Record Updated Successfully!');
+    alert('Record Updated!');
   };
 
-  const removeRecord = (id: string) => {
-    setSavedRecords(prev => prev.filter(r => r.id !== id));
-    if (editingRecordId === id) setEditingRecordId(null);
-  };
+  const removeRecord = (id: string) => setSavedRecords(prev => prev.filter(r => r.id !== id));
 
   const editRecord = (record: SavedRecord) => {
     setInputs(record.originalInputs);
@@ -568,45 +537,19 @@ const App: React.FC = () => {
   };
 
   const handleSaveAll = () => {
-    const dataToSave = { inputs, savedRecords, boltMaterials, plateMaterials, temaBoltData, tensioningData, gasketTypes, ringStandards };
-    const blob = new Blob([JSON.stringify(dataToSave, null, 2)], { type: 'application/json' });
+    const data = { inputs, savedRecords, boltMaterials, plateMaterials, temaBoltData, tensioningData, gasketTypes, ringStandards };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url; link.download = `FlangeData_${Date.now()}.json`; link.click(); URL.revokeObjectURL(url);
-  };
-
-  const handleLoadAll = () => {
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file'; fileInput.accept = '.json';
-    fileInput.onchange = (e: any) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const parsedData = JSON.parse(event.target?.result as string);
-          if (parsedData.inputs) {
-            setInputs(prev => ({
-              ...parsedData.inputs,
-              customLegendUrl: parsedData.inputs.customLegendUrl || prev.customLegendUrl
-            }));
-          }
-          if (parsedData.savedRecords) setSavedRecords(parsedData.savedRecords);
-          if (parsedData.boltMaterials) setBoltMaterials(parsedData.boltMaterials);
-          if (parsedData.plateMaterials) setPlateMaterials(parsedData.plateMaterials);
-        } catch (error) { console.error(error); }
-      };
-      reader.readAsText(file);
-    };
-    fileInput.click();
   };
 
   const exportToExcel = () => {
     if (savedRecords.length === 0) return;
     const headers = ['ITEM NO', 'PART', 'FLG OD', 'FLG ID', 'FLG BCD', 'GSK OD', 'GSK ID', 'g0', 'g1', 'BOLT SIZE', 'BOLT EA', 'MATERIAL', 'TYPE'];
     const rows = savedRecords.map(r => [r.itemNo, r.part, r.flangeOd, r.id_mm, r.bcd, r.gasketOd, r.gasketId, r.g0, r.g1, r.boltSize, r.boltEa, r.boltMaterial, r.gasketType]);
-    const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
-    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const csv = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+    const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url; link.download = `FlangeSummary_${Date.now()}.csv`; link.click(); URL.revokeObjectURL(url);
@@ -621,8 +564,8 @@ const App: React.FC = () => {
               <i className="fa-solid fa-wrench text-white text-2xl"></i>
             </div>
             <div>
-              <h1 className="text-2xl font-black text-slate-800 tracking-tighter uppercase">Flange Genie</h1>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">TEMA & ASME & PCC-1 Engineering Calculator</p>
+              <h1 className="text-2xl font-black text-slate-800 tracking-tighter uppercase">flange calculation</h1>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">TEMA & ASME & PCC-1 Engineering Tool</p>
             </div>
           </div>
         </header>
@@ -632,7 +575,7 @@ const App: React.FC = () => {
             <Calculator 
               inputs={inputs} onInputChange={handleInputChange} onOptimize={handleOptimize} 
               onResetOptimize={handleResetAndOptimize} onGlobalReset={handleGlobalReset}
-              onClearRecords={handleClearRecords} onLoad={handleLoadAll}
+              onClearRecords={handleClearRecords} onLoad={handleSaveAll}
               results={results} boltMaterials={boltMaterials} plateMaterials={plateMaterials}
               temaBoltData={temaBoltData} gasketTypes={gasketTypes} ringStandards={ringStandards}
             />
@@ -645,15 +588,11 @@ const App: React.FC = () => {
                 <div className="p-8 pb-4 flex justify-between items-center relative z-10">
                   <div className="flex items-center gap-3">
                     <div className="w-6 h-6 bg-sky-600 rounded flex items-center justify-center"><i className="fa-solid fa-chart-simple text-white text-[10px]"></i></div>
-                    <h2 className="text-sm font-black text-slate-800 leading-tight uppercase tracking-tight">REPORT</h2>
+                    <h2 className="text-sm font-black text-slate-800 leading-tight uppercase tracking-tight">PREVIEW</h2>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={handleSaveToList} className="bg-[#e12e2e] hover:bg-red-700 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg flex items-center gap-2">
-                      <i className="fa-solid fa-floppy-disk"></i> SAVE
-                    </button>
-                    <button onClick={handleEditSave} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg flex items-center gap-2 border ${editingRecordId ? 'bg-sky-600 border-sky-400 text-white' : 'bg-[#f1f5f9] border-[#e2e8f0] text-[#94a3b8] cursor-not-allowed'}`}>
-                      <i className="fa-solid fa-file-pen"></i> EDIT SAVE
-                    </button>
+                    <button onClick={handleSaveToList} className="bg-[#e12e2e] hover:bg-red-700 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg flex items-center gap-2"><i className="fa-solid fa-floppy-disk"></i> SAVE</button>
+                    <button onClick={handleEditSave} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg flex items-center gap-2 border ${editingRecordId ? 'bg-sky-600 border-sky-400 text-white' : 'bg-[#f1f5f9] border-[#e2e8f0] text-[#94a3b8] cursor-not-allowed'}`}><i className="fa-solid fa-file-pen"></i> EDIT SAVE</button>
                   </div>
                 </div>
                 <div className="px-8 pb-8 flex flex-col items-center">
@@ -661,57 +600,17 @@ const App: React.FC = () => {
                   <FlangeDiagram inputs={inputs} results={results} />
                 </div>
                 <div className="bg-[#0f172a] mx-3 mb-3 p-8 rounded-[2rem] border border-slate-800 shadow-2xl flex flex-col text-white relative">
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="h-[1px] flex-1 bg-white/10"></div>
-                    <span className="text-[10px] font-black text-slate-500 tracking-[0.3em] uppercase">LOAD ANALYSIS</span>
-                    <div className="h-[1px] flex-1 bg-white/10"></div>
-                  </div>
-                  
-                  {/* Status Card */}
+                  <div className="flex items-center gap-4 mb-6"><div className="h-[1px] flex-1 bg-white/10"></div><span className="text-[10px] font-black text-slate-500 tracking-[0.3em] uppercase">LOAD ANALYSIS</span><div className="h-[1px] flex-1 bg-white/10"></div></div>
                   <div className={`p-5 rounded-[1.5rem] border flex items-center gap-6 mb-4 ${isSafe ? 'border-white/10 bg-white/5' : 'border-red-500/20 bg-red-500/5'}`}>
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg shrink-0 ${isSafe ? 'bg-[#00c58d]' : 'bg-[#f83a3a]'}`}>
-                      <i className={`fa-solid ${isSafe ? 'fa-check' : 'fa-xmark'} text-white text-xl`}></i>
-                    </div>
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg shrink-0 ${isSafe ? 'bg-[#00c58d]' : 'bg-[#f83a3a]'}`}><i className={`fa-solid ${isSafe ? 'fa-check' : 'fa-xmark'} text-white text-xl`}></i></div>
                     <div className="flex-1 grid grid-cols-2 gap-4">
-                      <div className="space-y-0.5">
-                        <div className="text-[10px] font-bold text-[#525f7a] uppercase tracking-widest">STATUS</div>
-                        <div className={`text-base font-black uppercase tracking-tight ${isSafe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>
-                          {isSafe ? 'ACCEPTABLE' : 'RECHECK LOAD'}
-                        </div>
-                      </div>
-                      <div className="space-y-0.5 text-right">
-                        <div className="text-[10px] font-bold text-[#525f7a] uppercase tracking-widest">MARGIN</div>
-                        <div className={`text-2xl font-black tracking-tighter ${isSafe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>
-                          {marginPercent > 0 ? '+' : ''}{marginPercent.toFixed(1)}%
-                        </div>
-                      </div>
+                      <div className="space-y-0.5"><div className="text-[10px] font-bold text-[#525f7a] uppercase tracking-widest">STATUS</div><div className={`text-base font-black uppercase tracking-tight ${isSafe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>{isSafe ? 'ACCEPTABLE' : 'RECHECK LOAD'}</div></div>
+                      <div className="space-y-0.5 text-right"><div className="text-[10px] font-bold text-[#525f7a] uppercase tracking-widest">MARGIN</div><div className={`text-2xl font-black tracking-tighter ${isSafe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>{marginPercent > 0 ? '+' : ''}{marginPercent.toFixed(1)}%</div></div>
                     </div>
                   </div>
-
-                  {/* PCC-1 Summary */}
-                  {inputs.usePcc1Check && (
-                    <div className={`p-5 rounded-[1.5rem] border flex items-center gap-6 mb-4 ${pccStatusInfo.safe ? 'border-white/10 bg-white/5' : 'border-red-500/20 bg-red-500/5'}`}>
-                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg shrink-0 ${pccStatusInfo.safe ? 'bg-[#00c58d]' : 'bg-[#f83a3a]'}`}>
-                        <i className={`fa-solid ${pccStatusInfo.safe ? 'fa-check' : 'fa-xmark'} text-white text-xl`}></i>
-                      </div>
-                      <div className="flex-1 space-y-0.5">
-                        <div className="text-[10px] font-bold text-[#525f7a] uppercase tracking-widest">PCC-1 SUMMARY</div>
-                        <div className={`text-base font-black uppercase tracking-tight ${pccStatusInfo.safe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>
-                          {pccStatusInfo.safe ? 'PCC-1 VALIDATED' : 'RECHECK PCC'}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
                   <div className="grid grid-cols-2 gap-4 relative z-10 mt-6">
-                    <div className="bg-slate-900/50 p-6 rounded-[1.5rem] border border-white/5 space-y-4 text-center">
-                      <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest h-8 flex items-center justify-center px-2">Total Bolt Root Area</div>
-                      <div className="text-lg font-black text-sky-400">{results.totalBoltArea.toFixed(1)} <small className="text-[9px]">mm²</small></div>
-                    </div>
-                    <div className="bg-slate-900/50 p-6 rounded-[1.5rem] border border-white/5 space-y-4 text-center">
-                      <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest h-8 flex items-center justify-center px-2">Required Bolt Root Area</div>
-                      <div className="text-lg font-black text-pink-500">{results.requiredBoltArea.toFixed(1)} <small className="text-[9px]">mm²</small></div>
-                    </div>
+                    <div className="bg-slate-900/50 p-6 rounded-[1.5rem] border border-white/5 space-y-4 text-center"><div className="text-[8px] font-black text-slate-500 uppercase tracking-widest h-8 flex items-center justify-center px-2">Total Bolt Root Area</div><div className="text-lg font-black text-sky-400">{results.totalBoltArea.toFixed(1)} <small className="text-[9px]">mm²</small></div></div>
+                    <div className="bg-slate-900/50 p-6 rounded-[1.5rem] border border-white/5 space-y-4 text-center"><div className="text-[8px] font-black text-slate-500 uppercase tracking-widest h-8 flex items-center justify-center px-2">Required Bolt Root Area</div><div className="text-lg font-black text-pink-500">{results.requiredBoltArea.toFixed(1)} <small className="text-[9px]">mm²</small></div></div>
                   </div>
                 </div>
               </div>
@@ -734,19 +633,17 @@ const App: React.FC = () => {
             <div className="bg-slate-900 px-6 py-4 flex justify-between items-center">
               <h3 className="text-lg font-black text-white uppercase tracking-tighter">Calculation Summary List</h3>
               <div className="flex items-center gap-2">
-                <button onClick={handleSaveToList} className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-lg text-[10px] font-black uppercase shadow-md flex items-center gap-2 min-w-[100px] justify-center"><i className="fa-solid fa-floppy-disk"></i> SAVE</button>
-                <button onClick={handleEditSave} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase shadow-md flex items-center gap-2 border-2 min-w-[100px] justify-center ${editingRecordId ? 'bg-sky-600 border-sky-400 text-white' : 'bg-slate-100 border-slate-200 text-slate-400'}`}><i className="fa-solid fa-file-pen"></i> EDIT SAVE</button>
-                <button onClick={handleClearRecords} className="bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white px-4 py-1 rounded text-[9px] font-black uppercase tracking-widest border border-red-500/50"><i className="fa-solid fa-trash-can"></i> ALL CLEAR</button>
+                <button onClick={handleClearRecords} className="bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white px-4 py-1 rounded text-[9px] font-black uppercase tracking-widest border border-red-500/50"><i className="fa-solid fa-trash-can"></i> CLEAR ALL</button>
                 <button onClick={exportToExcel} className="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded text-[9px] font-black uppercase tracking-widest transition-all"><i className="fa-solid fa-file-excel"></i> PRINT</button>
                 <button onClick={handleSaveAll} className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2"><i className="fa-solid fa-floppy-disk"></i> OUTPUT</button>
               </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-[10px] font-bold text-center">
-                <thead className="bg-slate-50"><tr><th className="border p-2">ITEM NO</th><th className="border p-2">PART</th><th className="border p-2">OD</th><th className="border p-2">ID</th><th className="border p-2">BCD</th><th className="border p-2">SIZE</th><th className="border p-2">EA</th><th className="border p-2">MATERIAL</th><th className="border p-2">ACTION</th></tr></thead>
+                <thead className="bg-slate-50"><tr><th className="border p-2">ITEM NO</th><th className="border p-2">PART</th><th className="border p-2">OD</th><th className="border p-2">ID</th><th className="border p-2">BCD</th><th className="border p-2">SIZE</th><th className="border p-2">EA</th><th className="border p-2">ACTION</th></tr></thead>
                 <tbody>{savedRecords.map(record => (
                   <tr key={record.id} className={editingRecordId === record.id ? 'bg-indigo-50' : 'hover:bg-slate-50'}>
-                    <td className="border p-2">{record.itemNo}</td><td className="border p-2">{record.part}</td><td className="border p-2">{record.flangeOd}</td><td className="border p-2">{record.id_mm}</td><td className="border p-2">{record.bcd}</td><td className="border p-2">{record.boltSize}</td><td className="border p-2">{record.boltEa}</td><td className="border p-2">{record.boltMaterial}</td>
+                    <td className="border p-2">{record.itemNo}</td><td className="border p-2">{record.part}</td><td className="border p-2">{record.flangeOd}</td><td className="border p-2">{record.id_mm}</td><td className="border p-2">{record.bcd}</td><td className="border p-2">{record.boltSize}</td><td className="border p-2">{record.boltEa}</td>
                     <td className="border p-2"><div className="flex gap-2 justify-center"><button onClick={() => editRecord(record)} className="text-sky-600"><i className="fa-solid fa-pen-to-square"></i></button><button onClick={() => removeRecord(record.id)} className="text-red-600"><i className="fa-solid fa-trash-can"></i></button></div></td>
                   </tr>
                 ))}</tbody>
