@@ -54,7 +54,7 @@ export const ResultTable: React.FC<Props> = ({ inputs, results, temaBoltData, te
     <div className="space-y-4">
       {/* Header */}
       <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-        <h2 className="text-sm font-black text-slate-800 flex items-center gap-2 uppercase tracking-tighter">
+        <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 uppercase tracking-tighter">
           <i className="fa-solid fa-list-ol text-sky-600"></i> BCD Calculation
         </h2>
         <button 
