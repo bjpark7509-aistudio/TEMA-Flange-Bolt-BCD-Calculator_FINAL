@@ -26,30 +26,24 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
   const [showBackData, setShowBackData] = useState(false);
   const [activeTab, setActiveTab] = useState<TabId>('current');
   
-  // State to track original ID during editing to preserve row position
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingKeyNum, setEditingKeyNum] = useState<number | null>(null);
 
-  // State for Material CRUD
   const [isEditingMaterial, setIsEditingMaterial] = useState<boolean>(false);
   const [editingMaterial, setEditingMaterial] = useState<BoltMaterial | null>(null);
 
   const [isEditingPlateMaterial, setIsEditingPlateMaterial] = useState<boolean>(false);
   const [editingPlateMaterial, setEditingPlateMaterial] = useState<ShellMaterial | null>(null);
 
-  // State for Bolt Spec CRUD (Table D-5)
   const [isEditingBoltSpec, setIsEditingBoltSpec] = useState<boolean>(false);
   const [editingBoltSpec, setEditingBoltSpec] = useState<TemaBoltInfo | null>(null);
 
-  // State for Tensioning CRUD
   const [isEditingTensioningSpec, setIsEditingTensioningSpec] = useState<boolean>(false);
   const [editingTensioningSpec, setEditingTensioningSpec] = useState<TensioningInfo | null>(null);
 
-  // State for Gasket Factor CRUD
   const [isEditingGasketFactor, setIsEditingGasketFactor] = useState<boolean>(false);
   const [editingGasketFactor, setEditingGasketFactor] = useState<GasketType | null>(null);
 
-  // State for Ring Standard CRUD
   const [isEditingRingStandard, setIsEditingRingStandard] = useState<boolean>(false);
   const [editingRingStandard, setEditingRingStandard] = useState<RingStandard | null>(null);
   
@@ -101,7 +95,6 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
     }
   })();
 
-  // --- CSV Export Logic ---
   const exportTableToCsv = (filename: string, headers: string[], rows: (string | number | null)[][]) => {
     const csvContent = [
       headers.join(','),
@@ -172,21 +165,36 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
   const step7Threshold = totalBoltRootArea > 0 ? inputs.sgMax * (totalAg / totalBoltRootArea) : Infinity;
   const step8Threshold = inputs.phiFMax > 0 ? inputs.sfMax * ((inputs.phiGMax || 1) / inputs.phiFMax) : Infinity;
 
-  // Fix: Define the boolean status variables for each PCC-1 step
   const isStep5Ok = sbSelFinal >= step5Threshold - 0.001;
   const isStep6Ok = sbSelFinal >= step6Threshold - 0.001;
   const isStep7Ok = inputs.sgMax === 0 ? true : (sbSelFinal <= step7Threshold + 0.001);
   const isStep8Ok = inputs.phiFMax === 0 ? true : (sbSelFinal <= step8Threshold + 0.001);
 
-  const isSafe = results.totalBoltLoadDesign >= Math.max(results.wm1, results.wm2);
-  const marginPercent = ((results.totalBoltLoadDesign - Math.max(results.wm1, results.wm2)) / (Math.max(results.wm1, results.wm2) || 1)) * 100;
-
   const currentBoltRef = temaBoltData.find(b => b.size === inputs.boltSize);
+  const currentGasketRef = gasketTypes.find(g => g.id === inputs.gasketType);
 
   const tableHeaderClass = "px-4 py-3 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 border-b border-slate-200 sticky top-0 z-10 whitespace-nowrap";
   const tableCellClass = "px-4 py-3 text-[10px] font-mono text-slate-700 border-b border-slate-100 whitespace-nowrap";
 
-  // Bolt Material CRUD Handlers
+  // Summary Card Visual Helpers
+  const SummaryCard = ({ label, value, unit, className = "" }: { label: string, value: string | number, unit?: string, className?: string }) => (
+    <div className={`bg-slate-50/50 p-4 rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-md ${className}`}>
+      <span className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">{label}</span>
+      <span className="text-sm font-black text-slate-700 tabular-nums">
+        {value}{unit && <small className="ml-1 text-[10px] font-bold text-slate-400">{unit}</small>}
+      </span>
+    </div>
+  );
+
+  const GasketFactorCard = ({ label, value, className = "" }: { label: string, value: string | number, className?: string }) => (
+    <div className={`bg-white p-6 rounded-2xl border-2 border-yellow-100 shadow-sm transition-all ${className}`}>
+      <span className="block text-[10px] font-black text-amber-500 uppercase tracking-widest mb-3">{label}</span>
+      <span className="text-3xl font-black text-amber-700 tabular-nums">
+        {value}
+      </span>
+    </div>
+  );
+
   const handleAddNewBoltMaterial = () => {
     setEditingId(null);
     const newMat: BoltMaterial = {
@@ -232,7 +240,6 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
     setEditingId(null);
   };
 
-  // Plate Material CRUD Handlers
   const handleAddNewPlateMaterial = () => {
     setEditingId(null);
     const newMat: ShellMaterial = {
@@ -278,17 +285,9 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
     setEditingId(null);
   };
 
-  // --- Bolt Spec CRUD (Table D-5) Handlers ---
   const handleAddNewBoltSpec = () => {
     setEditingKeyNum(null);
-    const newSpec: TemaBoltInfo = {
-      size: 0,
-      R: 0,
-      B_min: 0,
-      E: 0,
-      holeSize: 0,
-      tensileArea: 0
-    };
+    const newSpec: TemaBoltInfo = { size: 0, R: 0, B_min: 0, E: 0, holeSize: 0, tensileArea: 0 };
     setEditingBoltSpec(newSpec);
     setIsEditingBoltSpec(true);
   };
@@ -326,13 +325,9 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
     setEditingKeyNum(null);
   };
 
-  // --- Tensioning CRUD Handlers ---
   const handleAddNewTensioningSpec = () => {
     setEditingKeyNum(null);
-    const newSpec: TensioningInfo = {
-      size: 0,
-      B_ten: 0
-    };
+    const newSpec: TensioningInfo = { size: 0, B_ten: 0 };
     setEditingTensioningSpec(newSpec);
     setIsEditingTensioningSpec(true);
   };
@@ -366,15 +361,9 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
     setEditingKeyNum(null);
   };
 
-  // --- Gasket Factor CRUD Handlers ---
   const handleAddNewGasketFactor = () => {
     setEditingId(null);
-    const newGasket: GasketType = {
-      id: "New Gasket " + (gasketTypes.length + 1),
-      m: 0,
-      y: 0,
-      sketches: ""
-    };
+    const newGasket: GasketType = { id: "New Gasket " + (gasketTypes.length + 1), m: 0, y: 0, sketches: "" };
     setEditingGasketFactor(newGasket);
     setIsEditingGasketFactor(true);
   };
@@ -412,15 +401,9 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
     setEditingId(null);
   };
 
-  // --- Ring Standard CRUD Handlers ---
   const handleAddNewRingStandard = () => {
     setEditingKeyNum(null);
-    const newRing: RingStandard = {
-      min: 0,
-      max: 0,
-      irMin: 0,
-      orMin: 0
-    };
+    const newRing: RingStandard = { min: 0, max: 0, irMin: 0, orMin: 0 };
     setEditingRingStandard(newRing);
     setIsEditingRingStandard(true);
   };
@@ -480,7 +463,7 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
   };
 
   const handleSaveRingStandardsToLocalStorage = () => {
-    localStorage.setItem('flange_genie_ring_standards', JSON.stringify(ringStandards));
+    localStorage.setItem('flange_calc_ring_standards', JSON.stringify(ringStandards));
     alert('Ring Standards have been saved as default values.');
   };
 
@@ -514,7 +497,7 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
   };
 
   const handleSaveGasketTypesToLocalStorage = () => {
-    localStorage.setItem('flange_genie_gasket_types', JSON.stringify(gasketTypes));
+    localStorage.setItem('flange_calc_gasket_types', JSON.stringify(gasketTypes));
     alert('Gasket Factors have been saved as default values.');
   };
 
@@ -543,7 +526,7 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
   };
 
   const handleSaveTensioningToLocalStorage = () => {
-    localStorage.setItem('flange_genie_tensioning_data', JSON.stringify(tensioningData));
+    localStorage.setItem('flange_calc_tensioning_data', JSON.stringify(tensioningData));
     alert('Bolt Tensioning Specifications have been saved as default values.');
   };
 
@@ -555,40 +538,22 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
       const text = e.target?.result as string;
       const lines = text.split(/\r?\n/);
       if (lines.length < 2) return;
-
-      // HLOOKUP Style Implementation:
-      // First, analyze the first row (headers) of the Excel/CSV file to find column positions.
       const headerRow = lines[0].split(',').map(h => h.trim().toLowerCase());
-      
       const findColIdx = (exactKey: string, partialKeywords: string[]) => {
-        // Priority 1: Exact Match
         const exact = headerRow.indexOf(exactKey.toLowerCase());
         if (exact !== -1) return exact;
-        
-        // Priority 2: Precise Partial Match
-        return headerRow.findIndex(h => partialKeywords.some(k => {
-          const lowerH = h.toLowerCase();
-          const lowerK = k.toLowerCase();
-          // Standard mapping for common headers
-          if (lowerK === 'r' || lowerK === 'b_min') {
-             return lowerH === lowerK || lowerH.startsWith(lowerK + ' ') || lowerH.includes('(' + lowerK + ')');
-          }
-          return lowerH.includes(lowerK);
-        }));
+        return headerRow.findIndex(h => partialKeywords.some(k => h.toLowerCase().includes(k.toLowerCase())));
       };
-
-      // Apply specific keywords from user request
       const idxSize = findColIdx('Size (in)', ['size (in)', 'size']);
       const idxR = findColIdx('R (in)', ['r (in)', 'radial', 'r']);
       const idxBmin = findColIdx('B_min (in)', ['b_min (in)', 'b_min', 'b min']);
       const idxBmax = findColIdx('B_max(WHC STD)', ['b_max', 'whc', 'max pitch']);
-      const idxE = findColIdx('E (in)', ['e (in)']); // User requested "e (in)"
+      const idxE = findColIdx('E (in)', ['e (in)']);
       const idxHole = findColIdx('Hole dH (mm)', ['hole', 'dh', 'hole size']);
-      const idxArea = findColIdx('Area (mm²)', ['area (mm²)']); // User requested "area (mm²)"
+      const idxArea = findColIdx('Area (mm²)', ['area (mm²)']);
 
-      // Error check: If we can't find the 'Size' column, we can't proceed.
       if (idxSize === -1) {
-        alert("Could not find 'Size (in)' column in the header row. Please check your CSV file headers.");
+        alert("Could not find 'Size (in)' column.");
         return;
       }
 
@@ -597,10 +562,7 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
         const line = lines[i].trim();
         if (!line) continue;
         const cols = line.split(',').map(c => c.trim());
-        
-        // Helper to safely get float value or 0
         const getVal = (idx: number) => idx !== -1 && idx < cols.length ? (parseFloat(cols[idx]) || 0) : 0;
-
         data.push({
           size: getVal(idxSize),
           R: getVal(idxR),
@@ -611,18 +573,17 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
           bMinWhc: idxBmax !== -1 ? (parseFloat(cols[idxBmax]) || undefined) : undefined
         });
       }
-
       if (data.length > 0) {
         setTemaBoltData(data);
-        alert(`Imported ${data.length} bolt specifications using keywords 'e (in)' and 'area (mm²)'.`);
-      } else alert("Invalid CSV format or no data found.");
+        alert(`Imported ${data.length} bolt specifications.`);
+      } else alert("Invalid CSV format.");
     };
     reader.readAsText(file);
     if (event.target) event.target.value = '';
   };
 
   const handleSaveTemaBoltToLocalStorage = () => {
-    localStorage.setItem('flange_genie_tema_bolt_data', JSON.stringify(temaBoltData));
+    localStorage.setItem('flange_calc_tema_bolt_data', JSON.stringify(temaBoltData));
     alert('Tema Bolt Specifications have been saved as default values.');
   };
 
@@ -633,7 +594,6 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
       return upper.includes('SA-') || upper.includes('SA–') || upper.includes('SB-') || upper.includes('SF-');
     });
     if (startIdx === -1) return [];
-
     const result: BoltMaterial[] = [];
     for (let i = startIdx; i < lines.length; i++) {
       const line = lines[i].trim();
@@ -658,7 +618,6 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
       return upper.startsWith('SA-') || upper.startsWith('SA–');
     });
     if (startIdx === -1) return [];
-
     const result: ShellMaterial[] = [];
     for (let i = startIdx; i < lines.length; i++) {
       const line = lines[i].trim();
@@ -684,7 +643,7 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
       const data = parseBoltCsv(e.target?.result as string);
       if (data.length > 0) {
         setBoltMaterials(data);
-        alert(`Imported ${data.length} bolt materials matching CSV order.`);
+        alert(`Imported ${data.length} bolt materials.`);
       } else alert("Invalid Bolt CSV format.");
     };
     reader.readAsText(file);
@@ -699,7 +658,7 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
       const data = parsePlateCsvInternal(e.target?.result as string);
       if (data.length > 0) {
         setPlateMaterials(data);
-        alert(`Imported ${data.length} plate materials matching CSV order.`);
+        alert(`Imported ${data.length} plate materials.`);
       } else alert("Invalid Plate CSV format.");
     };
     reader.readAsText(file);
@@ -708,10 +667,10 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
 
   const handleSaveToLocalStorage = (type: 'bolt' | 'plate') => {
     if (type === 'bolt') {
-      localStorage.setItem('flange_genie_bolt_materials', JSON.stringify(boltMaterials));
+      localStorage.setItem('flange_calc_bolt_materials', JSON.stringify(boltMaterials));
       alert('Bolt materials have been saved as default values.');
     } else {
-      localStorage.setItem('flange_genie_plate_materials', JSON.stringify(plateMaterials));
+      localStorage.setItem('flange_calc_plate_materials', JSON.stringify(plateMaterials));
       alert('Plate materials have been saved as default values.');
     }
   };
@@ -761,7 +720,6 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
                 <h3 className="text-[11px] font-black text-indigo-700 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
                   <i className="fa-solid fa-shapes"></i> G & b Calculation
                 </h3>
-                
                 <div className="grid grid-cols-1 gap-4">
                   <div className="p-4 bg-white rounded-xl border border-indigo-100 shadow-sm">
                     <div className="text-[9px] font-black text-indigo-400 uppercase mb-2">1. Gasket Mean Dia (G)</div>
@@ -787,7 +745,6 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
                       </div>
                     </div>
                   </div>
-
                   <div className="p-4 bg-white rounded-xl border border-indigo-100 shadow-sm">
                     <div className="text-[9px] font-black text-indigo-400 uppercase mb-2">2. Basic Width (b₀)</div>
                     <div className="text-[10px] font-mono text-black">
@@ -801,7 +758,6 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
                       </div>
                     </div>
                   </div>
-
                   <div className="p-4 bg-white rounded-xl border border-indigo-100 shadow-sm">
                     <div className="text-[9px] font-black text-indigo-400 uppercase mb-2">3. Effective Width (b)</div>
                     <div className="text-[10px] italic mb-2 font-sans text-black font-bold">
@@ -815,13 +771,11 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
                 </div>
               </div>
             </section>
-
             <section className="lg:col-span-8 space-y-4">
               <div className="h-full bg-sky-50/50 rounded-xl border border-sky-100 p-5">
                 <h3 className="text-[11px] font-black text-sky-700 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
                   <i className="fa-solid fa-weight-hanging"></i> Bolt Load Breakdown
                 </h3>
-                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="bg-white p-5 rounded-xl border border-sky-100 shadow-sm space-y-4">
                     <div className="text-[11px] font-black text-sky-800 border-b border-sky-50 pb-2 flex justify-between uppercase">
@@ -839,53 +793,36 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
                           <span className="font-black text-[11px] text-black">{formatValue(convertForce(results.hForce, selectedForceUnit))} <small className="text-[9px] uppercase text-black font-bold">{selectedForceUnit}</small></span>
                         </div>
                       </div>
-
                       <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
                         <div className="text-[9px] text-black font-bold uppercase mb-1">Gasket Load (H<sub>p</sub>)</div>
                         <div className="text-[9px] font-mono text-black mb-1 leading-tight">
                           [2·b·π·G·m·P] + [2·P·(w_p·L_p·m_p)] <br/>
                           = [2 × {results.bWidth.toFixed(2)} × π × {results.gMeanDia.toFixed(1)} × {results.gasketM} × {pMpa.toFixed(3)}]
-                          {inputs.passPartitionWidth > 0 && (
-                            <span className="block mt-1">
-                              + [2 × {pMpa.toFixed(3)} × ({inputs.passPartitionWidth} × {inputs.passPartitionLength} × {results.passM})]
-                            </span>
-                          )}
                         </div>
                         <div className="flex justify-between items-center pt-1 border-t border-slate-200">
                           <span className="text-[8px] font-bold text-black">RESULT</span>
                           <span className="font-black text-[11px] text-black">{formatValue(convertForce(results.hpForce, selectedForceUnit))} <small className="text-[9px] uppercase text-black font-bold">{selectedForceUnit}</small></span>
                         </div>
                       </div>
-
                       <div className="pt-2 flex justify-between items-center">
                         <span className="text-[10px] font-black text-sky-800">Total W<sub>o</sub></span>
                         <span className="text-xl font-black text-black">{formatValue(convertForce(results.wm1, selectedForceUnit))}</span>
                       </div>
                     </div>
                   </div>
-
                   <div className="bg-white p-5 rounded-xl border border-amber-100 shadow-sm space-y-4 flex flex-col">
-                    <div className="text-[11px] font-black text-amber-800 border-b border-amber-50 pb-2 uppercase">
-                      Seating (W<sub>g</sub>)
-                    </div>
-                    
+                    <div className="text-[11px] font-black text-amber-800 border-b border-amber-50 pb-2 uppercase">Seating (W<sub>g</sub>)</div>
                     <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 flex-1">
                       <div className="text-[9px] text-black font-bold uppercase mb-1">Seating Gasket Load</div>
                       <div className="text-[9px] font-mono text-black mb-2 leading-tight font-bold">
                         [π·b·G·y] + [w_p·L_p·y_p] <br/>
                         = [π × {results.bWidth.toFixed(2)} × {results.gMeanDia.toFixed(1)} × {results.gMeanDia !== 0 ? (results.gasketY * 0.00689476).toFixed(3) : 0} MPa]
-                        {inputs.passPartitionWidth > 0 && (
-                          <span className="block mt-1">
-                            + [{inputs.passPartitionWidth} × {inputs.passPartitionLength} × {(results.passY * 0.00689476).toFixed(3)} MPa]
-                          </span>
-                        )}
                       </div>
                       <div className="flex justify-between items-center pt-1 border-t border-slate-200">
                         <span className="text-[8px] font-bold text-black">RESULT</span>
                         <span className="font-black text-[11px] text-black">{formatValue(convertForce(results.wm2, selectedForceUnit))} <small className="text-[9px] uppercase text-black font-bold">{selectedForceUnit}</small></span>
                       </div>
                     </div>
-
                     <div className="pt-6 flex justify-between items-center">
                       <span className="text-[10px] font-black text-amber-800">Total W<sub>g</sub></span>
                       <span className="text-xl font-black text-black">{formatValue(convertForce(results.wm2, selectedForceUnit))}</span>
@@ -909,7 +846,6 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
                <h2 className="text-sm font-black text-emerald-800 uppercase tracking-tighter">PCC-1 Calculation Results</h2>
              </div>
           </div>
-
           <div className="p-6 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className={pccCardClass}>
@@ -925,102 +861,17 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
                    <span className={pccValueClass}>{totalAg.toLocaleString(undefined, { maximumFractionDigits: 0 })} <small className="text-[9px]">mm²</small></span>
                 </div>
               </div>
-
               <div className={pccCardClass}>
                 <div className="flex justify-between items-start">
                    <span className={pccLabelClass}>Step 1: Calculated Sbsel</span>
                    <i className="fa-solid fa-bolt-lightning text-slate-200 text-xs"></i>
                 </div>
-                <div className={pccFormulaClass}>
-                   ({inputs.sgT} × {totalAg.toLocaleString(undefined, { maximumFractionDigits: 0 })}) / ({results.singleBoltArea.toFixed(1)} × {inputs.boltCount})
-                </div>
+                <div className={pccFormulaClass}>({inputs.sgT} × {totalAg.toFixed(0)}) / ({results.singleBoltArea.toFixed(1)} × {inputs.boltCount})</div>
                 <div className="flex justify-between items-baseline pt-1 border-t border-slate-50">
                    <span className="text-[8px] font-bold text-slate-400 uppercase">Calc Value</span>
                    <span className={pccValueClass}>{sbSelCalc.toFixed(1)} <small className="text-[9px]">MPa</small></span>
                 </div>
               </div>
-            </div>
-
-            <div className="bg-white/50 border border-indigo-100 rounded-2xl p-6 space-y-6">
-               <h4 className="text-[11px] font-black text-indigo-800 uppercase tracking-[0.2em] border-b border-indigo-50 pb-2">Selection Sbsel</h4>
-               
-               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className={pccCardClass}>
-                    <span className={pccLabelClass}>Step 2: Sbsel = min[Step 1, Sbmax]</span>
-                    <div className={pccFormulaClass}>min[{sbSelCalc.toFixed(1)}, {inputs.sbMax}]</div>
-                    <div className="flex justify-between items-baseline pt-1 border-t border-slate-50">
-                       <span className="text-[8px] font-bold text-slate-400 uppercase">Step 2 Result</span>
-                       <span className="text-xs font-black text-indigo-700">{valA.toFixed(1)} MPa</span>
-                    </div>
-                  </div>
-
-                  <div className={pccCardClass}>
-                    <span className={pccLabelClass}>Step 3: Sbsel = max[Step 2, Sbmin]</span>
-                    <div className={pccFormulaClass}>max[{valA.toFixed(1)}, {inputs.sbMin}]</div>
-                    <div className="flex justify-between items-baseline pt-1 border-t border-slate-50">
-                       <span className="text-[8px] font-bold text-slate-400 uppercase">Step 3 Result</span>
-                       <span className="text-xs font-black text-indigo-700">{valB.toFixed(1)} MPa</span>
-                    </div>
-                  </div>
-
-                  <div className={pccCardClass}>
-                    <span className={pccLabelClass}>Step 4: Sbsel = min[Step 3, Sfmax]</span>
-                    <div className={pccFormulaClass}>min[{valB.toFixed(1)}, {inputs.sfMax}]</div>
-                    <div className="flex justify-between items-baseline pt-1 border-t border-slate-50">
-                       <span className="text-[8px] font-bold text-slate-400 uppercase">Step 4 Result</span>
-                       <span className="text-xs font-black text-indigo-700">{valC.toFixed(1)} MPa</span>
-                    </div>
-                  </div>
-
-                  <div className={pccCardClass}>
-                    <span className={pccLabelClass}>Sbsel: Final Result</span>
-                    <div className={pccFormulaClass}>Selection derived from Steps 2 to 4</div>
-                    <div className="flex justify-between items-baseline pt-1 border-t border-slate-50">
-                       <span className="text-[8px] font-bold text-slate-400 uppercase">Final Value</span>
-                       <span className="text-sm font-black text-indigo-700">{sbSelFinal.toFixed(1)} MPa</span>
-                    </div>
-                  </div>
-               </div>
-
-               <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
-                  <div className="md:col-span-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className={`p-4 rounded-xl border flex flex-col justify-between ${isStep5Ok ? 'bg-white border-slate-200' : 'bg-red-50 border-red-200'}`}>
-                      <span className={pccLabelClass}>Step 5: Sbsel ≥ Sgmin-S [Ag / (Ab×nb)]</span>
-                      <div className={pccFormulaClass}>{sbSelFinal.toFixed(1)} ≥ {inputs.sgMinS} × [{totalAg.toFixed(0)} / {totalBoltRootArea.toFixed(0)}] = {step5Threshold.toFixed(1)}</div>
-                      <div className="flex justify-between items-center pt-2 border-t border-slate-50">
-                         <span className="text-[8px] font-bold uppercase text-slate-400">Status</span>
-                         <span className={`text-[10px] font-black ${isStep5Ok ? 'text-emerald-600' : 'text-red-600'}`}>{isStep5Ok ? 'OK' : 'Not OK'}</span>
-                      </div>
-                    </div>
-
-                    <div className={`p-4 rounded-xl border flex flex-col justify-between ${isStep6Ok ? 'bg-white border-slate-200' : 'bg-red-50 border-red-200'}`}>
-                      <span className={pccLabelClass}>Step 6: Sbsel ≥ (Sgmin-O Ag + ...)</span>
-                      <div className={pccFormulaClass}>{sbSelFinal.toFixed(1)} ≥ ({inputs.sgMinO}×{totalAg.toFixed(0)} + (π/4)×{pMpa.toFixed(2)}×{results.seatingID.toFixed(0)}²) / ({inputs.g}×{totalBoltRootArea.toFixed(0)}) = {step6Threshold.toFixed(1)}</div>
-                      <div className="flex justify-between items-center pt-2 border-t border-slate-50">
-                         <span className="text-[8px] font-bold uppercase text-slate-400">Status</span>
-                         <span className={`text-[10px] font-black ${isStep6Ok ? 'text-emerald-600' : 'text-red-600'}`}>{isStep6Ok ? 'OK' : 'Not OK'}</span>
-                      </div>
-                    </div>
-
-                    <div className={`p-4 rounded-xl border flex flex-col justify-between ${isStep7Ok ? 'bg-white border-slate-200' : 'bg-red-50 border-red-200'}`}>
-                      <span className={pccLabelClass}>Step 7: Sbsel ≤ Sgmax [Ag / (Ab×nb)]</span>
-                      <div className={pccFormulaClass}>{sbSelFinal.toFixed(1)} ≤ {inputs.sgMax} × [{totalAg.toFixed(0)} / {totalBoltRootArea.toFixed(0)}] = {step7Threshold.toFixed(1)}</div>
-                      <div className="flex justify-between items-center pt-2 border-t border-slate-50">
-                         <span className="text-[8px] font-bold uppercase text-slate-400">Status</span>
-                         <span className={`text-[10px] font-black ${isStep7Ok ? 'text-emerald-600' : 'text-red-600'}`}>{isStep7Ok ? 'OK' : 'Not OK'}</span>
-                      </div>
-                    </div>
-
-                    <div className={`p-4 rounded-xl border flex flex-col justify-between ${isStep8Ok ? 'bg-white border-slate-200' : 'bg-red-50 border-red-200'}`}>
-                      <span className={pccLabelClass}>Step 8: Sbsel ≤ Sfmax (Φg/Φf)</span>
-                      <div className={pccFormulaClass}>{sbSelFinal.toFixed(1)} ≤ {inputs.sfMax} × ({inputs.phiGMax} / {inputs.phiFMax}) = {step8Threshold.toFixed(1)}</div>
-                      <div className="flex justify-between items-center pt-2 border-t border-slate-50">
-                         <span className="text-[8px] font-bold uppercase text-slate-400">Status</span>
-                         <span className={`text-[10px] font-black ${isStep8Ok ? 'text-emerald-600' : 'text-red-600'}`}>{isStep8Ok ? 'OK' : 'Not OK'}</span>
-                      </div>
-                    </div>
-                  </div>
-               </div>
             </div>
           </div>
         </div>
@@ -1042,23 +893,19 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
       {showBackData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowBackData(false)}></div>
-          <div className="relative w-full max-w-[95vw] lg:max-w-7xl bg-white rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col h-[90vh]">
-            <div className="bg-slate-900 text-white p-6 flex justify-between items-center border-b border-white/10 shrink-0">
+          <div className="relative w-full max-w-[95vw] lg:max-w-7xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col h-[90vh]">
+            <div className="bg-slate-900 text-white p-6 flex justify-between items-center shrink-0">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 bg-sky-500 rounded-xl flex items-center justify-center shadow-lg shadow-sky-500/20">
-                  <i className="fa-solid fa-book-open text-lg"></i>
-                </div>
+                <div className="w-10 h-10 bg-sky-500 rounded-xl flex items-center justify-center"><i className="fa-solid fa-book-open"></i></div>
                 <div>
                   <h3 className="text-xl font-black uppercase tracking-tighter">Engineering Reference Library</h3>
                   <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">TEMA & ASME Standards Database</p>
                 </div>
               </div>
-              <button onClick={() => setShowBackData(false)} className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white transition-all">
-                <i className="fa-solid fa-xmark text-xl"></i>
-              </button>
+              <button onClick={() => setShowBackData(false)} className="w-10 h-10 rounded-full hover:bg-white/10 flex items-center justify-center text-white"><i className="fa-solid fa-xmark text-xl"></i></button>
             </div>
 
-            <div className="bg-slate-50 border-b border-slate-200 px-6 flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0">
+            <div className="bg-slate-50 border-b border-slate-200 px-6 flex items-center gap-2 overflow-x-auto shrink-0">
               {(['current', 'bolts', 'tensioning', 'stress', 'plate_stress', 'gaskets', 'rings', 'pcc1'] as TabId[]).map((tab) => (
                 <button
                   key={tab}
@@ -1079,44 +926,42 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
               ))}
             </div>
 
-            <div className="p-4 lg:p-8 space-y-8 flex-1 overflow-y-auto custom-scrollbar bg-white">
+            <div className="p-4 lg:p-8 space-y-8 flex-1 overflow-y-auto bg-white">
               {activeTab === 'current' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-4">
-                    <h4 className="text-[10px] font-black text-sky-600 uppercase tracking-widest border-b border-sky-100 pb-2">Active Bolt Reference</h4>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[
-                        { label: "Selected Size", val: `${inputs.boltSize}"` },
-                        { label: "B-MIN", val: `${currentBoltRef?.B_min}"` },
-                        { label: "R (Radial Rh)", val: `${currentBoltRef?.R}"` },
-                        { label: "E (Edge Dist.)", val: `${currentBoltRef?.E}"` },
-                        { label: "Hole Size dH", val: `${currentBoltRef?.holeSize.toFixed(3)} mm` },
-                        { label: "Tensile Area", val: `${(currentBoltRef?.tensileArea || 0).toFixed(1)} mm²` }
-                      ].map((item, idx) => (
-                        <div key={idx} className="bg-slate-50 p-3 rounded-xl border border-slate-100 shadow-sm">
-                          <span className="block text-[8px] font-black text-slate-400 uppercase mb-1">{item.label}</span>
-                          <span className="text-sm font-black text-slate-700 font-mono">{item.val}</span>
-                        </div>
-                      ))}
+                <div className="animate-in fade-in duration-500 space-y-12">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+                    {/* Left Section: Bolt Reference */}
+                    <div className="lg:col-span-7 space-y-6">
+                       <h4 className="text-xs font-black text-sky-600 uppercase tracking-widest flex items-center gap-2 pb-2 border-b-2 border-sky-100">
+                         ACTIVE BOLT REFERENCE
+                       </h4>
+                       <div className="grid grid-cols-2 gap-4">
+                         <SummaryCard label="SELECTED SIZE" value={`${inputs.boltSize}"`} />
+                         <SummaryCard label="B-MIN" value={`${currentBoltRef?.B_min || 0}"`} />
+                         <SummaryCard label="R (RADIAL RH)" value={`${currentBoltRef?.R || 0}"`} />
+                         <SummaryCard label="E (EDGE DIST.)" value={`${currentBoltRef?.E || 0}"`} />
+                         <SummaryCard label="HOLE SIZE DH" value={(currentBoltRef?.holeSize || 0).toFixed(3)} unit="mm" />
+                         <SummaryCard label="TENSILE AREA" value={(currentBoltRef?.tensileArea || 0).toFixed(1)} unit="mm²" />
+                       </div>
                     </div>
-                  </div>
-                  <div className="space-y-4">
-                    <h4 className="text-[10px] font-black text-amber-600 uppercase tracking-widest border-b border-amber-100 pb-2">Active Gasket Factors</h4>
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 shadow-sm space-y-4">
-                      <div>
-                        <span className="block text-[8px] font-black text-slate-400 uppercase mb-2">Selected Type</span>
-                        <span className="text-xs font-black text-slate-700">{inputs.gasketType}</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-white p-3 rounded-lg border border-amber-100">
-                          <span className="block text-[8px] font-black text-amber-500 uppercase mb-1">M Factor</span>
-                          <span className="text-xl font-black text-amber-700">{results.gasketM.toFixed(2)}</span>
-                        </div>
-                        <div className="bg-white p-3 rounded-lg border border-amber-100">
-                          <span className="block text-[8px] font-black text-amber-500 uppercase mb-1">Y Factor (PSI)</span>
-                          <span className="text-xl font-black text-amber-700">{results.gasketY}</span>
-                        </div>
-                      </div>
+
+                    {/* Right Section: Gasket Factors */}
+                    <div className="lg:col-span-5 space-y-6">
+                       <h4 className="text-xs font-black text-amber-600 uppercase tracking-widest flex items-center gap-2 pb-2 border-b-2 border-amber-100">
+                         ACTIVE GASKET FACTORS
+                       </h4>
+                       <div className="bg-slate-50/50 p-6 rounded-3xl border border-slate-100 space-y-6">
+                         <div>
+                           <span className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">SELECTED TYPE</span>
+                           <span className="text-sm font-black text-slate-700 leading-snug">
+                             {inputs.gasketType}
+                           </span>
+                         </div>
+                         <div className="grid grid-cols-2 gap-4">
+                            <GasketFactorCard label="M FACTOR" value={(currentGasketRef?.m || 0).toFixed(2)} />
+                            <GasketFactorCard label="Y FACTOR (PSI)" value={currentGasketRef?.y || 0} />
+                         </div>
+                       </div>
                     </div>
                   </div>
                 </div>
@@ -1124,48 +969,34 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
 
               {activeTab === 'stress' && (
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
-                    <div className="flex items-center gap-4">
-                      <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bolt Allowable stress (S) matrix - MPa</h5>
-                      <div className="flex gap-2">
-                        <button onClick={handleAddNewBoltMaterial} className="bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm transition-all active:scale-95">
-                          <i className="fa-solid fa-plus"></i> Add New Material
-                        </button>
-                        <button onClick={() => boltFileInputRef.current?.click()} className="bg-sky-600 hover:bg-sky-700 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm transition-all active:scale-95">
-                          <i className="fa-solid fa-file-excel"></i> Upload CSV
-                        </button>
-                        <button onClick={() => handleExportStresses('bolt')} className="bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm transition-all active:scale-95">
-                          <i className="fa-solid fa-file-excel"></i> OUTPUT
-                        </button>
-                        <button onClick={() => handleSaveToLocalStorage('bolt')} className="bg-indigo-500 hover:bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm transition-all active:scale-95">
-                          <i className="fa-solid fa-floppy-disk"></i> SAVE
-                        </button>
-                      </div>
+                  <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg">
+                    <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bolt Allowable stress (S) matrix - MPa</h5>
+                    <div className="flex gap-2">
+                      <button onClick={handleAddNewBoltMaterial} className="bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm">Add New</button>
+                      <button onClick={() => boltFileInputRef.current?.click()} className="bg-sky-600 hover:bg-sky-700 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm">Upload CSV</button>
+                      <button onClick={() => handleExportStresses('bolt')} className="bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm">Export</button>
+                      <button onClick={() => handleSaveToLocalStorage('bolt')} className="bg-indigo-500 hover:bg-indigo-600 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm">Save to Defaults</button>
                     </div>
                   </div>
-                  <div className="overflow-x-auto border rounded-xl shadow-lg relative bg-white">
-                    <table className="w-full border-collapse border-spacing-0">
+                  <div className="overflow-x-auto border rounded-xl">
+                    <table className="w-full border-collapse">
                       <thead>
                         <tr className="bg-slate-100">
-                          <th className={`${tableHeaderClass} sticky left-0 z-20 bg-slate-100 border-r min-w-[50px] text-center`}>Action</th>
-                          <th className={`${tableHeaderClass} sticky left-[50px] z-20 bg-slate-100 border-r min-w-[200px]`}>Material ID</th>
-                          <th className={`${tableHeaderClass} border-r text-emerald-600`}>Min_Tensile</th>
-                          <th className={`${tableHeaderClass} border-r text-emerald-600`}>Min_Yield</th>
+                          <th className={`${tableHeaderClass} border-r text-center`}>Action</th>
+                          <th className={`${tableHeaderClass} border-r`}>Material ID</th>
                           {BOLT_TEMP_STEPS.map(temp => <th key={temp} className={`${tableHeaderClass} border-r text-center`}>{temp}</th>)}
                         </tr>
                       </thead>
                       <tbody>
                         {boltMaterials.map((mat, i) => (
                           <tr key={i} className={mat.id === inputs.boltMaterial ? "bg-sky-50" : i % 2 === 0 ? "bg-white" : "bg-slate-50/30"}>
-                            <td className={`${tableCellClass} sticky left-0 z-10 border-r text-center ${mat.id === inputs.boltMaterial ? 'bg-sky-100' : 'bg-inherit'}`}>
-                              <div className="flex items-center justify-center gap-2">
-                                <button onClick={() => handleEditBoltMaterial(mat)} className="text-sky-500 hover:text-sky-700 transition-colors"><i className="fa-solid fa-pen-to-square"></i></button>
-                                <button onClick={() => handleDeleteBoltMaterial(mat.id)} className="text-slate-300 hover:text-red-500 transition-colors"><i className="fa-solid fa-trash-can"></i></button>
+                            <td className={`${tableCellClass} border-r text-center`}>
+                              <div className="flex gap-2 justify-center">
+                                <button onClick={() => handleEditBoltMaterial(mat)} className="text-sky-500"><i className="fa-solid fa-pen-to-square"></i></button>
+                                <button onClick={() => handleDeleteBoltMaterial(mat.id)} className="text-red-300"><i className="fa-solid fa-trash-can"></i></button>
                               </div>
                             </td>
-                            <td className={`${tableCellClass} sticky left-[50px] z-10 font-black text-xs border-r ${mat.id === inputs.boltMaterial ? 'bg-sky-100' : 'bg-inherit'}`}>{mat.id}</td>
-                            <td className={`${tableCellClass} border-r text-center font-bold text-slate-500`}>{mat.minTensile || '-'}</td>
-                            <td className={`${tableCellClass} border-r text-center font-bold text-slate-500`}>{mat.minYield || '-'}</td>
+                            <td className={`${tableCellClass} font-black border-r`}>{mat.id}</td>
                             {BOLT_TEMP_STEPS.map((temp, idx) => <td key={idx} className={`${tableCellClass} border-r text-center`}>{mat.stresses[idx] !== null ? mat.stresses[idx] : ''}</td>)}
                           </tr>
                         ))}
@@ -1177,80 +1008,35 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
 
               {activeTab === 'plate_stress' && (
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
-                    <div className="flex items-center gap-4">
-                      <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Plate Allowable stress (S) matrix - MPa</h5>
-                      <div className="flex gap-2">
-                        <button onClick={handleAddNewPlateMaterial} className="bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm transition-all active:scale-95">
-                          <i className="fa-solid fa-plus"></i> Add New Material
-                        </button>
-                        <button onClick={() => plateFileInputRef.current?.click()} className="bg-sky-600 hover:bg-sky-700 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm transition-all active:scale-95">
-                          <i className="fa-solid fa-file-excel"></i> Upload CSV
-                        </button>
-                        <button onClick={() => handleExportStresses('plate')} className="bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm transition-all active:scale-95">
-                          <i className="fa-solid fa-file-excel"></i> OUTPUT
-                        </button>
-                        <button onClick={() => handleSaveToLocalStorage('plate')} className="bg-indigo-500 hover:bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm transition-all active:scale-95">
-                          <i className="fa-solid fa-floppy-disk"></i> SAVE
-                        </button>
-                      </div>
+                  <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg">
+                    <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Plate Allowable stress (S) matrix - MPa</h5>
+                    <div className="flex gap-2">
+                      <button onClick={handleAddNewPlateMaterial} className="bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm">Add New</button>
+                      <button onClick={() => plateFileInputRef.current?.click()} className="bg-sky-600 hover:bg-sky-700 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm">Upload CSV</button>
+                      <button onClick={() => handleExportStresses('plate')} className="bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm">Export</button>
+                      <button onClick={() => handleSaveToLocalStorage('plate')} className="bg-indigo-500 hover:bg-indigo-600 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm">Save to Defaults</button>
                     </div>
                   </div>
-                  <div className="overflow-x-auto border rounded-xl shadow-lg relative bg-white">
-                    <table className="w-full border-collapse border-spacing-0">
+                  <div className="overflow-x-auto border rounded-xl">
+                    <table className="w-full border-collapse">
                       <thead>
                         <tr className="bg-slate-100">
-                          <th className={`${tableHeaderClass} sticky left-0 z-20 bg-slate-100 border-r min-w-[50px] text-center`}>Action</th>
-                          <th className={`${tableHeaderClass} sticky left-[50px] z-20 bg-slate-100 border-r min-w-[200px]`}>Material ID</th>
-                          <th className={`${tableHeaderClass} border-r text-emerald-600`}>Min_Tensile</th>
-                          <th className={`${tableHeaderClass} border-r text-emerald-600`}>Min_Yield</th>
+                          <th className={`${tableHeaderClass} border-r text-center`}>Action</th>
+                          <th className={`${tableHeaderClass} border-r`}>Material ID</th>
                           {PLATE_TEMP_STEPS.map(temp => <th key={temp} className={`${tableHeaderClass} border-r text-center`}>{temp}</th>)}
                         </tr>
                       </thead>
                       <tbody>
                         {plateMaterials.map((mat, i) => (
                           <tr key={i} className={mat.id === inputs.shellMaterial ? "bg-sky-50" : i % 2 === 0 ? "bg-white" : "bg-slate-50/30"}>
-                            <td className={`${tableCellClass} sticky left-0 z-10 border-r text-center ${mat.id === inputs.shellMaterial ? 'bg-sky-100' : 'bg-inherit'}`}>
-                              <div className="flex items-center justify-center gap-2">
-                                <button onClick={() => handleEditPlateMaterial(mat)} className="text-sky-500 hover:text-sky-700 transition-colors"><i className="fa-solid fa-pen-to-square"></i></button>
-                                <button onClick={() => handleDeletePlateMaterial(mat.id)} className="text-slate-300 hover:text-red-500 transition-colors"><i className="fa-solid fa-trash-can"></i></button>
+                            <td className={`${tableCellClass} border-r text-center`}>
+                              <div className="flex gap-2 justify-center">
+                                <button onClick={() => handleEditPlateMaterial(mat)} className="text-sky-500"><i className="fa-solid fa-pen-to-square"></i></button>
+                                <button onClick={() => handleDeletePlateMaterial(mat.id)} className="text-red-300"><i className="fa-solid fa-trash-can"></i></button>
                               </div>
                             </td>
-                            <td className={`${tableCellClass} sticky left-[50px] z-10 font-black text-xs border-r ${mat.id === inputs.shellMaterial ? 'bg-sky-100' : 'bg-inherit'}`}>{mat.id}</td>
-                            <td className={`${tableCellClass} border-r text-center font-bold text-slate-500`}>{mat.minTensile || '-'}</td>
-                            <td className={`${tableCellClass} border-r text-center font-bold text-slate-500`}>{mat.minYield || '-'}</td>
+                            <td className={`${tableCellClass} font-black border-r`}>{mat.id}</td>
                             {PLATE_TEMP_STEPS.map((temp, idx) => <td key={idx} className={`${tableCellClass} border-r text-center`}>{mat.stresses[idx] !== null ? mat.stresses[idx] : ''}</td>)}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'pcc1' && (
-                <div className="space-y-6">
-                  <div className="flex flex-col gap-2">
-                    <h4 className="text-[14px] font-black text-slate-800 uppercase tracking-tight">Table 3—Assembly Gasket Stress</h4>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">PCC-1 (API 660) Engineering Reference</p>
-                  </div>
-                  <div className="overflow-x-auto border rounded-xl shadow-sm">
-                    <table className="w-full border-collapse">
-                      <thead>
-                        <tr>
-                          <th className={`${tableHeaderClass} min-w-[200px]`}>Peripheral Gasket Type</th>
-                          <th className={tableHeaderClass}>Max Permissible Stress (Sgmax)<br/><span className="lowercase font-bold opacity-60">MPa (psi)</span></th>
-                          <th className={tableHeaderClass}>Min Seating Stress (Sgmin-S)<br/><span className="lowercase font-bold opacity-60">MPa (psi)</span></th>
-                          <th className={tableHeaderClass}>Min Operating Stress (Sgmin-O)<br/><span className="lowercase font-bold opacity-60">MPa (psi)</span></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {API660_PCC1_STRESS_TABLE.map((row, i) => (
-                          <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/30"}>
-                            <td className={`${tableCellClass} font-black text-slate-800 border-r`}>{row.type}</td>
-                            <td className={`${tableCellClass} border-r text-center font-bold`}>{row.sgMax}</td>
-                            <td className={`${tableCellClass} border-r text-center font-bold`}>{row.sgMinS}</td>
-                            <td className={`${tableCellClass} text-center font-bold`}>{row.sgMinO}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -1261,26 +1047,16 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
 
               {activeTab === 'bolts' && (
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
-                    <div className="flex items-center gap-4">
-                      <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Tema Bolt specifications (Table D-5)</h5>
-                      <div className="flex gap-2">
-                        <button onClick={handleAddNewBoltSpec} className="bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm transition-all active:scale-95">
-                          <i className="fa-solid fa-plus"></i> Add New Bolt
-                        </button>
-                        <button onClick={() => temaBoltFileInputRef.current?.click()} className="bg-sky-600 hover:bg-sky-700 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm transition-all active:scale-95">
-                          <i className="fa-solid fa-file-excel"></i> Upload CSV
-                        </button>
-                        <button onClick={handleExportBoltSpecs} className="bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm transition-all active:scale-95">
-                          <i className="fa-solid fa-file-excel"></i> OUTPUT
-                        </button>
-                        <button onClick={handleSaveTemaBoltToLocalStorage} className="bg-indigo-500 hover:bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm transition-all active:scale-95">
-                          <i className="fa-solid fa-floppy-disk"></i> SAVE
-                        </button>
-                      </div>
+                  <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg">
+                    <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Tema Bolt specifications (Table D-5)</h5>
+                    <div className="flex gap-2">
+                      <button onClick={handleAddNewBoltSpec} className="bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm">Add New</button>
+                      <button onClick={() => temaBoltFileInputRef.current?.click()} className="bg-sky-600 hover:bg-sky-700 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm">Upload CSV</button>
+                      <button onClick={handleExportBoltSpecs} className="bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm">Export</button>
+                      <button onClick={handleSaveTemaBoltToLocalStorage} className="bg-indigo-500 hover:bg-indigo-600 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm">Save to Defaults</button>
                     </div>
                   </div>
-                  <div className="overflow-x-auto border rounded-xl shadow-sm">
+                  <div className="overflow-x-auto border rounded-xl">
                     <table className="w-full border-collapse">
                       <thead>
                         <tr>
@@ -1288,25 +1064,20 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
                           <th className={tableHeaderClass}>Size (in)</th>
                           <th className={tableHeaderClass}>R (in)</th>
                           <th className={tableHeaderClass}>B-MIN</th>
-                          <th className={tableHeaderClass}>B-MAX(WHC STD)</th>
+                          <th className={tableHeaderClass}>B-MAX</th>
                           <th className={tableHeaderClass}>E (in)</th>
-                          <th className={tableHeaderClass}>Hole dH (mm)</th>
+                          <th className={tableHeaderClass}>Hole (mm)</th>
                           <th className={tableHeaderClass}>Area (mm²)</th>
                         </tr>
                       </thead>
                       <tbody>
                         {temaBoltData.map((bolt, i) => (
                           <tr key={i} className={bolt.size === inputs.boltSize ? "bg-sky-50" : ""}>
-                            <td className={`${tableCellClass} text-center`}>
-                              <div className="flex items-center justify-center gap-2">
-                                <button onClick={() => handleEditBoltSpec(bolt)} className="text-sky-500 hover:text-sky-700 transition-colors"><i className="fa-solid fa-pen-to-square"></i></button>
-                                <button onClick={() => handleDeleteBoltSpec(bolt.size)} className="text-slate-300 hover:text-red-500 transition-colors"><i className="fa-solid fa-trash-can"></i></button>
-                              </div>
-                            </td>
+                            <td className={tableCellClass}><div className="flex gap-2 justify-center"><button onClick={() => handleEditBoltSpec(bolt)} className="text-sky-500"><i className="fa-solid fa-pen-to-square"></i></button><button onClick={() => handleDeleteBoltSpec(bolt.size)} className="text-red-300"><i className="fa-solid fa-trash-can"></i></button></div></td>
                             <td className={`${tableCellClass} font-black`}>{bolt.size}"</td>
                             <td className={tableCellClass}>{bolt.R}</td>
                             <td className={tableCellClass}>{bolt.B_min}</td>
-                            <td className={`${tableCellClass} font-black text-sky-600`}>{bolt.bMinWhc || '-'}</td>
+                            <td className={tableCellClass}>{bolt.bMinWhc || '-'}</td>
                             <td className={tableCellClass}>{bolt.E}</td>
                             <td className={tableCellClass}>{bolt.holeSize.toFixed(3)}</td>
                             <td className={tableCellClass}>{bolt.tensileArea.toFixed(1)}</td>
@@ -1320,51 +1091,30 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
 
               {activeTab === 'tensioning' && (
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
-                    <div className="flex items-center gap-4">
-                      <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bolt Tensioning specifications</h5>
-                      <div className="flex gap-2">
-                        <button onClick={handleAddNewTensioningSpec} className="bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm transition-all active:scale-95">
-                          <i className="fa-solid fa-plus"></i> Add New Spec
-                        </button>
-                        <button onClick={() => tensioningFileInputRef.current?.click()} className="bg-sky-600 hover:bg-sky-700 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm transition-all active:scale-95">
-                          <i className="fa-solid fa-file-excel"></i> Upload CSV
-                        </button>
-                        <button onClick={handleExportTensioning} className="bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm transition-all active:scale-95">
-                          <i className="fa-solid fa-file-excel"></i> OUTPUT
-                        </button>
-                        <button onClick={handleSaveTensioningToLocalStorage} className="bg-indigo-500 hover:bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm transition-all active:scale-95">
-                          <i className="fa-solid fa-floppy-disk"></i> SAVE
-                        </button>
-                      </div>
+                  <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg">
+                    <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bolt Tensioning specifications</h5>
+                    <div className="flex gap-2">
+                      <button onClick={handleAddNewTensioningSpec} className="bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm">Add New</button>
+                      <button onClick={() => tensioningFileInputRef.current?.click()} className="bg-sky-600 hover:bg-sky-700 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm">Upload CSV</button>
+                      <button onClick={handleExportTensioning} className="bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm">Export</button>
+                      <button onClick={handleSaveTensioningToLocalStorage} className="bg-indigo-500 hover:bg-indigo-600 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm">Save to Defaults</button>
                     </div>
                   </div>
-                  <div className="overflow-x-auto border rounded-xl shadow-sm max-w-2xl mx-auto bg-white">
+                  <div className="overflow-x-auto border rounded-xl max-w-2xl mx-auto">
                     <table className="w-full border-collapse">
                       <thead>
                         <tr>
                           <th className={`${tableHeaderClass} text-center`}>Action</th>
                           <th className={tableHeaderClass}>Bolt Size (in)</th>
                           <th className={tableHeaderClass}>B_ten (in)</th>
-                          <th className={tableHeaderClass}>Status</th>
                         </tr>
                       </thead>
                       <tbody>
                         {tensioningData.map((item, i) => (
                           <tr key={i} className={item.size === inputs.boltSize ? "bg-sky-50" : ""}>
-                            <td className={`${tableCellClass} text-center`}>
-                              <div className="flex items-center justify-center gap-2">
-                                <button onClick={() => handleEditTensioningSpec(item)} className="text-sky-500 hover:text-sky-700 transition-colors"><i className="fa-solid fa-pen-to-square"></i></button>
-                                <button onClick={() => handleDeleteTensioningSpec(item.size)} className="text-slate-300 hover:text-red-500 transition-colors"><i className="fa-solid fa-trash-can"></i></button>
-                              </div>
-                            </td>
+                            <td className={tableCellClass}><div className="flex gap-2 justify-center"><button onClick={() => handleEditTensioningSpec(item)} className="text-sky-500"><i className="fa-solid fa-pen-to-square"></i></button><button onClick={() => handleDeleteTensioningSpec(item.size)} className="text-red-300"><i className="fa-solid fa-trash-can"></i></button></div></td>
                             <td className={`${tableCellClass} font-black`}>{item.size}"</td>
                             <td className={tableCellClass}>{item.B_ten}</td>
-                            <td className={tableCellClass}>
-                              {item.size === inputs.boltSize ? (
-                                <span className="text-[8px] bg-sky-600 text-white px-1.5 py-0.5 rounded-full font-black">ACTIVE</span>
-                              ) : null}
-                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1375,57 +1125,33 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
 
               {activeTab === 'gaskets' && (
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
-                    <div className="flex items-center gap-4">
-                      <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Gasket Factors (Table 4.16.1)</h5>
-                      <div className="flex gap-2">
-                        <button onClick={handleAddNewGasketFactor} className="bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm transition-all active:scale-95">
-                          <i className="fa-solid fa-plus"></i> Add New Gasket
-                        </button>
-                        <button onClick={() => gasketFileInputRef.current?.click()} className="bg-sky-600 hover:bg-sky-700 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm transition-all active:scale-95">
-                          <i className="fa-solid fa-file-excel"></i> Upload CSV
-                        </button>
-                        <button onClick={handleExportGaskets} className="bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm transition-all active:scale-95">
-                          <i className="fa-solid fa-file-excel"></i> OUTPUT
-                        </button>
-                        <button onClick={handleSaveGasketTypesToLocalStorage} className="bg-indigo-500 hover:bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm transition-all active:scale-95">
-                          <i className="fa-solid fa-floppy-disk"></i> SAVE
-                        </button>
-                      </div>
+                  <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg">
+                    <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Gasket Factors (Table 4.16.1)</h5>
+                    <div className="flex gap-2">
+                      <button onClick={handleAddNewGasketFactor} className="bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm">Add New</button>
+                      <button onClick={() => gasketFileInputRef.current?.click()} className="bg-sky-600 hover:bg-sky-700 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg shadow-sm">Upload CSV</button>
+                      <button onClick={handleExportGaskets} className="bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm">Export</button>
+                      <button onClick={handleSaveGasketTypesToLocalStorage} className="bg-indigo-500 hover:bg-indigo-600 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm">Save to Defaults</button>
                     </div>
                   </div>
-                  <div className="overflow-x-auto border rounded-xl shadow-sm">
+                  <div className="overflow-x-auto border rounded-xl">
                     <table className="w-full border-collapse">
                       <thead>
                         <tr>
-                          <th rowSpan={2} className={`${tableHeaderClass} border-r text-center`}>Action</th>
-                          <th rowSpan={2} className={`${tableHeaderClass} border-r`}>GASKET MATERIAL</th>
-                          <th rowSpan={2} className={`${tableHeaderClass} border-r text-center`}>GASKET FACTOR, m</th>
-                          <th colSpan={2} className={`${tableHeaderClass} border-r border-b text-center`}>MIN. DESIGN SEATING STRESS, y</th>
-                          <th rowSpan={2} className={`${tableHeaderClass} text-center`}>FACING SKETCH</th>
-                        </tr>
-                        <tr>
-                          <th className={`${tableHeaderClass} border-r text-center bg-slate-50/50`}>MPa</th>
-                          <th className={`${tableHeaderClass} border-r text-center bg-slate-50/50`}>PSI</th>
+                          <th className={`${tableHeaderClass} border-r text-center`}>Action</th>
+                          <th className={`${tableHeaderClass} border-r`}>GASKET MATERIAL</th>
+                          <th className={`${tableHeaderClass} border-r text-center`}>m</th>
+                          <th className={`${tableHeaderClass} border-r text-center`}>y (PSI)</th>
+                          <th className={`${tableHeaderClass} text-center`}>SKETCH</th>
                         </tr>
                       </thead>
                       <tbody>
                         {gasketTypes.map((g, i) => (
                           <tr key={i} className={g.id === inputs.gasketType ? "bg-sky-50" : ""}>
-                            <td className={`${tableCellClass} border-r text-center`}>
-                              <div className="flex items-center justify-center gap-2">
-                                <button onClick={() => handleEditGasketFactor(g)} className="text-sky-500 hover:text-sky-700 transition-colors"><i className="fa-solid fa-pen-to-square"></i></button>
-                                <button onClick={() => handleDeleteGasketFactor(g.id)} className="text-slate-300 hover:text-red-500 transition-colors"><i className="fa-solid fa-trash-can"></i></button>
-                              </div>
-                            </td>
-                            <td className={`${tableCellClass} font-black text-slate-800`}>{g.id}</td>
-                            <td className={`${tableCellClass} text-center`}>{g.m.toFixed(2)}</td>
-                            <td className={`${tableCellClass} text-center font-bold`}>
-                              {(g.y * 0.00689476).toFixed(0)}
-                            </td>
-                            <td className={`${tableCellClass} text-center font-bold`}>
-                              {g.y.toLocaleString()}
-                            </td>
+                            <td className={`${tableCellClass} border-r text-center`}><div className="flex gap-2 justify-center"><button onClick={() => handleEditGasketFactor(g)} className="text-sky-500"><i className="fa-solid fa-pen-to-square"></i></button><button onClick={() => handleDeleteGasketFactor(g.id)} className="text-red-300"><i className="fa-solid fa-trash-can"></i></button></div></td>
+                            <td className={`${tableCellClass} font-black border-r`}>{g.id}</td>
+                            <td className={`${tableCellClass} text-center border-r`}>{g.m.toFixed(2)}</td>
+                            <td className={`${tableCellClass} text-center border-r`}>{g.y.toLocaleString()}</td>
                             <td className={`${tableCellClass} text-center italic text-slate-400`}>{g.sketches}</td>
                           </tr>
                         ))}
@@ -1437,54 +1163,36 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
 
               {activeTab === 'rings' && (
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg border border-slate-200">
-                    <div className="flex items-center gap-4">
-                      <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Ring Standards (Defaults)</h5>
-                      <div className="flex gap-2">
-                        <button onClick={handleAddNewRingStandard} className="bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm transition-all active:scale-95">
-                          <i className="fa-solid fa-plus"></i> Add New Ring
-                        </button>
-                        <button onClick={() => ringFileInputRef.current?.click()} className="bg-sky-600 hover:bg-sky-700 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm transition-all active:scale-95">
-                          <i className="fa-solid fa-file-excel"></i> Upload CSV
-                        </button>
-                        <button onClick={handleExportRings} className="bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm transition-all active:scale-95">
-                          <i className="fa-solid fa-file-excel"></i> OUTPUT
-                        </button>
-                        <button onClick={handleSaveRingStandardsToLocalStorage} className="bg-indigo-500 hover:bg-indigo-600 text-white text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-sm transition-all active:scale-95">
-                          <i className="fa-solid fa-floppy-disk"></i> SAVE
-                        </button>
-                      </div>
+                  <div className="flex justify-between items-center bg-slate-50 p-3 rounded-lg">
+                    <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Ring Standards</h5>
+                    <div className="flex gap-2">
+                      <button onClick={handleAddNewRingStandard} className="bg-indigo-600 hover:bg-indigo-700 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm">Add New</button>
+                      <button onClick={() => ringFileInputRef.current?.click()} className="bg-sky-600 hover:bg-sky-700 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm">Upload CSV</button>
+                      <button onClick={handleExportRings} className="bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm">Export</button>
+                      <button onClick={handleSaveRingStandardsToLocalStorage} className="bg-indigo-500 hover:bg-indigo-600 text-white text-[9px] font-black uppercase px-3 py-1.5 rounded-lg shadow-sm">Save to Defaults</button>
                     </div>
                   </div>
-                  <div className="overflow-x-auto border rounded-xl shadow-sm bg-white">
+                  <div className="overflow-x-auto border rounded-xl">
                     <table className="w-full border-collapse">
                       <thead>
                         <tr>
                           <th className={`${tableHeaderClass} text-center`}>Action</th>
-                          <th className={tableHeaderClass}>Shell ID Min (mm)</th>
-                          <th className={tableHeaderClass}>Shell ID Max (mm)</th>
-                          <th className={tableHeaderClass}>Min IR Width (mm)</th>
-                          <th className={tableHeaderClass}>Min OR Width (mm)</th>
+                          <th className={tableHeaderClass}>Min (mm)</th>
+                          <th className={tableHeaderClass}>Max (mm)</th>
+                          <th className={tableHeaderClass}>IR (mm)</th>
+                          <th className={tableHeaderClass}>OR (mm)</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {ringStandards.map((ring, i) => {
-                          const isActive = inputs.insideDia >= ring.min && inputs.insideDia <= ring.max;
-                          return (
-                            <tr key={i} className={isActive ? "bg-sky-50" : ""}>
-                              <td className={`${tableCellClass} text-center`}>
-                                <div className="flex items-center justify-center gap-2">
-                                  <button onClick={() => handleEditRingStandard(ring)} className="text-sky-500 hover:text-sky-700 transition-colors"><i className="fa-solid fa-pen-to-square"></i></button>
-                                  <button onClick={() => handleDeleteRingStandard(ring.min, ring.max)} className="text-slate-300 hover:text-red-500 transition-colors"><i className="fa-solid fa-trash-can"></i></button>
-                                </div>
-                              </td>
-                              <td className={tableCellClass}>{ring.min}</td>
-                              <td className={tableCellClass}>{ring.max === 100000 ? '∞' : ring.max}</td>
-                              <td className={tableCellClass}>{ring.irMin}</td>
-                              <td className={tableCellClass}>{ring.orMin}</td>
-                            </tr>
-                          );
-                        })}
+                        {ringStandards.map((ring, i) => (
+                          <tr key={i}>
+                            <td className={tableCellClass}><div className="flex gap-2 justify-center"><button onClick={() => handleEditRingStandard(ring)} className="text-sky-500"><i className="fa-solid fa-pen-to-square"></i></button><button onClick={() => handleDeleteRingStandard(ring.min, ring.max)} className="text-red-300"><i className="fa-solid fa-trash-can"></i></button></div></td>
+                            <td className={tableCellClass}>{ring.min}</td>
+                            <td className={tableCellClass}>{ring.max === 100000 ? '∞' : ring.max}</td>
+                            <td className={tableCellClass}>{ring.irMin}</td>
+                            <td className={tableCellClass}>{ring.orMin}</td>
+                          </tr>
+                        ))}
                       </tbody>
                     </table>
                   </div>
@@ -1495,290 +1203,114 @@ export const BoltLoadTable: React.FC<Props> = ({ inputs, results, boltMaterials,
         </div>
       )}
 
-      {/* Editors and Modals */}
-      {/* Ring Standard Editor Modal */}
+      {/* Editor Modals */}
       {isEditingRingStandard && editingRingStandard && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" onClick={() => setIsEditingRingStandard(false)}></div>
-          <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl p-6 flex flex-col animate-in fade-in zoom-in duration-200">
-            <div className="flex justify-between items-center mb-6 border-b pb-4 border-slate-200 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white"><i className="fa-solid fa-circle-nodes"></i></div>
-                <div>
-                  <h3 className="text-lg font-black uppercase tracking-tight text-slate-800">Ring Standard Editor</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gasket Ring Configuration</p>
-                </div>
-              </div>
-              <button onClick={() => setIsEditingRingStandard(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><i className="fa-solid fa-xmark text-xl"></i></button>
-            </div>
-            
+          <div className="relative w-full max-w-lg bg-white rounded-2xl p-6">
+            <h3 className="text-lg font-black uppercase mb-6 border-b pb-2">Ring Standard Editor</h3>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Min Shell ID (mm)</label>
-                <input type="number" step="1" value={editingRingStandard.min} onChange={(e) => setEditingRingStandard({...editingRingStandard, min: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Max Shell ID (mm)</label>
-                <input type="number" step="1" value={editingRingStandard.max} onChange={(e) => setEditingRingStandard({...editingRingStandard, max: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Min Inner Ring Width (mm)</label>
-                <input type="number" step="0.1" value={editingRingStandard.irMin} onChange={(e) => setEditingRingStandard({...editingRingStandard, irMin: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Min Outer Ring Width (mm)</label>
-                <input type="number" step="0.1" value={editingRingStandard.orMin} onChange={(e) => setEditingRingStandard({...editingRingStandard, orMin: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm" />
-              </div>
+              <div><label className="text-[10px] font-black uppercase">Min ID</label><input type="number" value={editingRingStandard.min} onChange={(e) => setEditingRingStandard({...editingRingStandard, min: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded" /></div>
+              <div><label className="text-[10px] font-black uppercase">Max ID</label><input type="number" value={editingRingStandard.max} onChange={(e) => setEditingRingStandard({...editingRingStandard, max: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded" /></div>
+              <div><label className="text-[10px] font-black uppercase">IR Min</label><input type="number" value={editingRingStandard.irMin} onChange={(e) => setEditingRingStandard({...editingRingStandard, irMin: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded" /></div>
+              <div><label className="text-[10px] font-black uppercase">OR Min</label><input type="number" value={editingRingStandard.orMin} onChange={(e) => setEditingRingStandard({...editingRingStandard, orMin: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded" /></div>
             </div>
-
-            <div className="mt-8 pt-4 border-t flex justify-end gap-3 border-slate-200 shrink-0">
-              <button onClick={() => setIsEditingRingStandard(false)} className="px-6 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
-              <button onClick={saveRingStandard} className="px-8 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest rounded-lg shadow-lg">Save Ring</button>
-            </div>
+            <div className="mt-8 flex justify-end gap-3"><button onClick={() => setIsEditingRingStandard(false)} className="px-4 py-2 text-[10px] font-black uppercase border rounded">Cancel</button><button onClick={saveRingStandard} className="px-4 py-2 bg-indigo-600 text-white text-[10px] font-black uppercase rounded shadow-lg">Save</button></div>
           </div>
         </div>
       )}
 
-      {/* Gasket Factor Editor Modal */}
       {isEditingGasketFactor && editingGasketFactor && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" onClick={() => setIsEditingGasketFactor(false)}></div>
-          <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl p-6 flex flex-col animate-in fade-in zoom-in duration-200">
-            <div className="flex justify-between items-center mb-6 border-b pb-4 border-slate-200 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white"><i className="fa-solid fa-ring"></i></div>
-                <div>
-                  <h3 className="text-lg font-black uppercase tracking-tight text-slate-800">Gasket Factor Editor</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Table 4.16.1 Configuration</p>
-                </div>
-              </div>
-              <button onClick={() => setIsEditingGasketFactor(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><i className="fa-solid fa-xmark text-xl"></i></button>
-            </div>
-            
+          <div className="relative w-full max-w-2xl bg-white rounded-2xl p-6">
+            <h3 className="text-lg font-black uppercase mb-6 border-b pb-2">Gasket Editor</h3>
             <div className="grid grid-cols-1 gap-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Gasket Material / ID</label>
-                <input type="text" value={editingGasketFactor.id} onChange={(e) => setEditingGasketFactor({...editingGasketFactor, id: e.target.value})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm" />
-              </div>
+              <div><label className="text-[10px] font-black uppercase">ID / Material</label><input type="text" value={editingGasketFactor.id} onChange={(e) => setEditingGasketFactor({...editingGasketFactor, id: e.target.value})} className="w-full p-2 border rounded" /></div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Gasket Factor, m</label>
-                  <input type="number" step="0.01" value={editingGasketFactor.m} onChange={(e) => setEditingGasketFactor({...editingGasketFactor, m: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Seating Stress, y (PSI)</label>
-                  <input type="number" step="1" value={editingGasketFactor.y} onChange={(e) => setEditingGasketFactor({...editingGasketFactor, y: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm" />
-                </div>
+                <div><label className="text-[10px] font-black uppercase">m Factor</label><input type="number" value={editingGasketFactor.m} onChange={(e) => setEditingGasketFactor({...editingGasketFactor, m: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded" /></div>
+                <div><label className="text-[10px] font-black uppercase">y Stress (PSI)</label><input type="number" value={editingGasketFactor.y} onChange={(e) => setEditingGasketFactor({...editingGasketFactor, y: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded" /></div>
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Facing Sketches</label>
-                <input type="text" value={editingGasketFactor.sketches} onChange={(e) => setEditingGasketFactor({...editingGasketFactor, sketches: e.target.value})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm" placeholder="e.g. (1a), (1b), (1c), (1d)" />
-              </div>
+              <div><label className="text-[10px] font-black uppercase">Sketches</label><input type="text" value={editingGasketFactor.sketches} onChange={(e) => setEditingGasketFactor({...editingGasketFactor, sketches: e.target.value})} className="w-full p-2 border rounded" /></div>
             </div>
-
-            <div className="mt-8 pt-4 border-t flex justify-end gap-3 border-slate-200 shrink-0">
-              <button onClick={() => setIsEditingGasketFactor(false)} className="px-6 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
-              <button onClick={saveGasketFactor} className="px-8 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest rounded-lg shadow-lg">Save Gasket Factor</button>
-            </div>
+            <div className="mt-8 flex justify-end gap-3"><button onClick={() => setIsEditingGasketFactor(false)} className="px-4 py-2 text-[10px] font-black uppercase border rounded">Cancel</button><button onClick={saveGasketFactor} className="px-4 py-2 bg-indigo-600 text-white text-[10px] font-black uppercase rounded shadow-lg">Save</button></div>
           </div>
         </div>
       )}
 
-      {/* Tensioning Spec Editor Modal */}
       {isEditingTensioningSpec && editingTensioningSpec && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" onClick={() => setIsEditingTensioningSpec(false)}></div>
-          <div className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 flex flex-col animate-in fade-in zoom-in duration-200">
-            <div className="flex justify-between items-center mb-6 border-b pb-4 border-slate-200 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white"><i className="fa-solid fa-oil-can"></i></div>
-                <div>
-                  <h3 className="text-lg font-black uppercase tracking-tight text-slate-800">Tensioning Spec Editor</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Hydraulic Tensioning Configuration</p>
-                </div>
-              </div>
-              <button onClick={() => setIsEditingTensioningSpec(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><i className="fa-solid fa-xmark text-xl"></i></button>
-            </div>
-            
+          <div className="relative w-full max-w-md bg-white rounded-2xl p-6">
+            <h3 className="text-lg font-black uppercase mb-6 border-b pb-2">Tensioning Editor</h3>
             <div className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bolt Size (inch)</label>
-                <input type="number" step="0.001" value={editingTensioningSpec.size} onChange={(e) => setEditingTensioningSpec({...editingTensioningSpec, size: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">B_ten: Min tensioning spacing (inch)</label>
-                <input type="number" step="0.001" value={editingTensioningSpec.B_ten} onChange={(e) => setEditingTensioningSpec({...editingTensioningSpec, B_ten: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm" />
-              </div>
+              <div><label className="text-[10px] font-black uppercase">Size (inch)</label><input type="number" value={editingTensioningSpec.size} onChange={(e) => setEditingTensioningSpec({...editingTensioningSpec, size: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded" /></div>
+              <div><label className="text-[10px] font-black uppercase">B_ten (inch)</label><input type="number" value={editingTensioningSpec.B_ten} onChange={(e) => setEditingTensioningSpec({...editingTensioningSpec, B_ten: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded" /></div>
             </div>
-
-            <div className="mt-8 pt-4 border-t flex justify-end gap-3 border-slate-200 shrink-0">
-              <button onClick={() => setIsEditingTensioningSpec(false)} className="px-6 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
-              <button onClick={saveTensioningSpec} className="px-8 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest rounded-lg shadow-lg">Save Spec</button>
-            </div>
+            <div className="mt-8 flex justify-end gap-3"><button onClick={() => setIsEditingTensioningSpec(false)} className="px-4 py-2 text-[10px] font-black uppercase border rounded">Cancel</button><button onClick={saveTensioningSpec} className="px-4 py-2 bg-indigo-600 text-white text-[10px] font-black uppercase rounded shadow-lg">Save</button></div>
           </div>
         </div>
       )}
 
-      {/* Bolt Spec Editor Modal */}
       {isEditingBoltSpec && editingBoltSpec && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" onClick={() => setIsEditingBoltSpec(false)}></div>
-          <div className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl p-6 flex flex-col animate-in fade-in zoom-in duration-200">
-            <div className="flex justify-between items-center mb-6 border-b pb-4 border-slate-200 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white"><i className="fa-solid fa-bolt"></i></div>
-                <div>
-                  <h3 className="text-lg font-black uppercase tracking-tight text-slate-800">Bolt Specification Editor</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Table D-5 Configuration</p>
-                </div>
-              </div>
-              <button onClick={() => setIsEditingBoltSpec(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><i className="fa-solid fa-xmark text-xl"></i></button>
-            </div>
-            
+          <div className="relative w-full max-w-2xl bg-white rounded-2xl p-6">
+            <h3 className="text-lg font-black uppercase mb-6 border-b pb-2">Bolt Spec Editor</h3>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bolt Size (inch)</label>
-                <input type="number" step="0.001" value={editingBoltSpec.size} onChange={(e) => setEditingBoltSpec({...editingBoltSpec, size: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">R: Radial distance (inch)</label>
-                <input type="number" step="0.001" value={editingBoltSpec.R} onChange={(e) => setEditingBoltSpec({...editingBoltSpec, R: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">B_min: Min spacing (inch)</label>
-                <input type="number" step="0.001" value={editingBoltSpec.B_min} onChange={(e) => setEditingBoltSpec({...editingBoltSpec, B_min: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">E: Edge distance (inch)</label>
-                <input type="number" step="0.001" value={editingBoltSpec.E} onChange={(e) => setEditingBoltSpec({...editingBoltSpec, E: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Hole Diameter (mm)</label>
-                <input type="number" step="0.001" value={editingBoltSpec.holeSize} onChange={(e) => setEditingBoltSpec({...editingBoltSpec, holeSize: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Tensile Area (mm²)</label>
-                <input type="number" step="0.1" value={editingBoltSpec.tensileArea} onChange={(e) => setEditingBoltSpec({...editingBoltSpec, tensileArea: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm" />
-              </div>
-              <div className="space-y-1 col-span-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">bMinWhc: WHC Std Min Pitch (mm)</label>
-                <input type="number" step="0.1" value={editingBoltSpec.bMinWhc || ''} onChange={(e) => setEditingBoltSpec({...editingBoltSpec, bMinWhc: parseFloat(e.target.value) || undefined})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm" placeholder="Optional" />
-              </div>
+              <div><label className="text-[10px] font-black uppercase">Size (in)</label><input type="number" value={editingBoltSpec.size} onChange={(e) => setEditingBoltSpec({...editingBoltSpec, size: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded" /></div>
+              <div><label className="text-[10px] font-black uppercase">R (in)</label><input type="number" value={editingBoltSpec.R} onChange={(e) => setEditingBoltSpec({...editingBoltSpec, R: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded" /></div>
+              <div><label className="text-[10px] font-black uppercase">B_min (in)</label><input type="number" value={editingBoltSpec.B_min} onChange={(e) => setEditingBoltSpec({...editingBoltSpec, B_min: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded" /></div>
+              <div><label className="text-[10px] font-black uppercase">E (in)</label><input type="number" value={editingBoltSpec.E} onChange={(e) => setEditingBoltSpec({...editingBoltSpec, E: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded" /></div>
+              <div><label className="text-[10px] font-black uppercase">Hole (mm)</label><input type="number" value={editingBoltSpec.holeSize} onChange={(e) => setEditingBoltSpec({...editingBoltSpec, holeSize: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded" /></div>
+              <div><label className="text-[10px] font-black uppercase">Area (mm²)</label><input type="number" value={editingBoltSpec.tensileArea} onChange={(e) => setEditingBoltSpec({...editingBoltSpec, tensileArea: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded" /></div>
+              <div className="col-span-2"><label className="text-[10px] font-black uppercase">B_max WHC (mm)</label><input type="number" value={editingBoltSpec.bMinWhc || ''} onChange={(e) => setEditingBoltSpec({...editingBoltSpec, bMinWhc: parseFloat(e.target.value) || undefined})} className="w-full p-2 border rounded" /></div>
             </div>
-
-            <div className="mt-8 pt-4 border-t flex justify-end gap-3 border-slate-200 shrink-0">
-              <button onClick={() => setIsEditingBoltSpec(false)} className="px-6 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
-              <button onClick={saveBoltSpec} className="px-8 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest rounded-lg shadow-lg">Save Bolt Spec</button>
-            </div>
+            <div className="mt-8 flex justify-end gap-3"><button onClick={() => setIsEditingBoltSpec(false)} className="px-4 py-2 text-[10px] font-black uppercase border rounded">Cancel</button><button onClick={saveBoltSpec} className="px-4 py-2 bg-indigo-600 text-white text-[10px] font-black uppercase rounded shadow-lg">Save</button></div>
           </div>
         </div>
       )}
 
-      {/* Bolt Material Editor Modal */}
       {isEditingMaterial && editingMaterial && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" onClick={() => setIsEditingMaterial(false)}></div>
-          <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl p-6 flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="flex justify-between items-center mb-6 border-b pb-4 border-slate-200 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white"><i className="fa-solid fa-flask"></i></div>
-                <div>
-                  <h3 className="text-lg font-black uppercase tracking-tight text-slate-800">Bolt Material Editor</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Configure Stress Parameters (MPa)</p>
-                </div>
+          <div className="relative w-full max-w-4xl bg-white rounded-2xl p-6 flex flex-col max-h-[90vh]">
+            <h3 className="text-lg font-black uppercase mb-6 border-b pb-2">Bolt Material Editor</h3>
+            <div className="overflow-y-auto space-y-6 flex-1">
+              <div className="grid grid-cols-3 gap-4">
+                <div><label className="text-[10px] font-black uppercase">ID</label><input type="text" value={editingMaterial.id} onChange={(e) => setEditingMaterial({...editingMaterial, id: e.target.value})} className="w-full p-2 border rounded" /></div>
+                <div><label className="text-[10px] font-black uppercase">Min Tensile</label><input type="number" value={editingMaterial.minTensile || ''} onChange={(e) => setEditingMaterial({...editingMaterial, minTensile: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded" /></div>
+                <div><label className="text-[10px] font-black uppercase">Min Yield</label><input type="number" value={editingMaterial.minYield || ''} onChange={(e) => setEditingMaterial({...editingMaterial, minYield: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded" /></div>
               </div>
-              <button onClick={() => setIsEditingMaterial(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><i className="fa-solid fa-xmark text-xl"></i></button>
-            </div>
-            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Material ID</label>
-                  <input type="text" value={editingMaterial.id} onChange={(e) => setEditingMaterial({...editingMaterial, id: e.target.value})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Min Tensile (MPa)</label>
-                  <input type="number" value={editingMaterial.minTensile || ''} onChange={(e) => setEditingMaterial({...editingMaterial, minTensile: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Min Yield (MPa)</label>
-                  <input type="number" value={editingMaterial.minYield || ''} onChange={(e) => setEditingMaterial({...editingMaterial, minYield: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-sm" />
-                </div>
-              </div>
-              <div className="space-y-3">
-                <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-widest border-l-4 border-indigo-600 pl-2">Stress vs Temperature Matrix</h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2">
-                  {BOLT_TEMP_STEPS.map((temp, idx) => (
-                    <div key={temp} className="space-y-1">
-                      <label className="text-[8px] font-black text-slate-400 uppercase text-center block">{temp}°C</label>
-                      <input type="number" step="0.1" value={editingMaterial.stresses[idx] === null ? '' : editingMaterial.stresses[idx]} onChange={(e) => {
-                        const newStresses = [...editingMaterial.stresses];
-                        newStresses[idx] = e.target.value === '' ? null : parseFloat(e.target.value);
-                        setEditingMaterial({...editingMaterial, stresses: newStresses});
-                      }} className="w-full px-2 py-1 text-center border rounded-md text-[10px] font-mono focus:border-indigo-500 outline-none" />
-                    </div>
-                  ))}
-                </div>
+              <div className="grid grid-cols-8 gap-2">
+                {BOLT_TEMP_STEPS.map((temp, idx) => (
+                  <div key={temp} className="text-center"><label className="text-[8px] font-black uppercase">{temp}°C</label><input type="number" step="0.1" value={editingMaterial.stresses[idx] === null ? '' : editingMaterial.stresses[idx]} onChange={(e) => { const next = [...editingMaterial.stresses]; next[idx] = e.target.value === '' ? null : parseFloat(e.target.value); setEditingMaterial({...editingMaterial, stresses: next}); }} className="w-full p-1 border rounded text-center text-[10px]" /></div>
+                ))}
               </div>
             </div>
-            <div className="mt-6 pt-4 border-t flex justify-end gap-3 border-slate-200 shrink-0">
-              <button onClick={() => setIsEditingMaterial(false)} className="px-6 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
-              <button onClick={saveBoltMaterial} className="px-8 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-black uppercase tracking-widest rounded-lg shadow-lg">Save Changes</button>
-            </div>
+            <div className="mt-8 flex justify-end gap-3 pt-4 border-t"><button onClick={() => setIsEditingMaterial(false)} className="px-4 py-2 text-[10px] font-black uppercase border rounded">Cancel</button><button onClick={saveBoltMaterial} className="px-4 py-2 bg-indigo-600 text-white text-[10px] font-black uppercase rounded shadow-lg">Save</button></div>
           </div>
         </div>
       )}
 
-      {/* Plate Material Editor Modal */}
       {isEditingPlateMaterial && editingPlateMaterial && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" onClick={() => setIsEditingPlateMaterial(false)}></div>
-          <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl p-6 flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="flex justify-between items-center mb-6 border-b pb-4 border-slate-200 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center text-white"><i className="fa-solid fa-layer-group"></i></div>
-                <div>
-                  <h3 className="text-lg font-black uppercase tracking-tight text-slate-800">Plate Material Editor</h3>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Configure Plate Stress Parameters (MPa)</p>
-                </div>
+          <div className="relative w-full max-w-4xl bg-white rounded-2xl p-6 flex flex-col max-h-[90vh]">
+            <h3 className="text-lg font-black uppercase mb-6 border-b pb-2">Plate Material Editor</h3>
+            <div className="overflow-y-auto space-y-6 flex-1">
+              <div className="grid grid-cols-3 gap-4">
+                <div><label className="text-[10px] font-black uppercase">ID</label><input type="text" value={editingPlateMaterial.id} onChange={(e) => setEditingPlateMaterial({...editingPlateMaterial, id: e.target.value})} className="w-full p-2 border rounded" /></div>
+                <div><label className="text-[10px] font-black uppercase">Min Tensile</label><input type="number" value={editingPlateMaterial.minTensile || ''} onChange={(e) => setEditingPlateMaterial({...editingPlateMaterial, minTensile: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded" /></div>
+                <div><label className="text-[10px] font-black uppercase">Min Yield</label><input type="number" value={editingPlateMaterial.minYield || ''} onChange={(e) => setEditingPlateMaterial({...editingPlateMaterial, minYield: parseFloat(e.target.value) || 0})} className="w-full p-2 border rounded" /></div>
               </div>
-              <button onClick={() => setIsEditingPlateMaterial(false)} className="text-slate-400 hover:text-slate-600 transition-colors"><i className="fa-solid fa-xmark text-xl"></i></button>
-            </div>
-            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Material ID</label>
-                  <input type="text" value={editingPlateMaterial.id} onChange={(e) => setEditingPlateMaterial({...editingPlateMaterial, id: e.target.value})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-sm" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Min Tensile (MPa)</label>
-                  <input type="number" value={editingPlateMaterial.minTensile || ''} onChange={(e) => setEditingPlateMaterial({...editingPlateMaterial, minTensile: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-sm" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Min Yield (MPa)</label>
-                  <input type="number" value={editingPlateMaterial.minYield || ''} onChange={(e) => setEditingPlateMaterial({...editingPlateMaterial, minYield: parseFloat(e.target.value) || 0})} className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none font-bold text-sm" />
-                </div>
-              </div>
-              <div className="space-y-3">
-                <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-widest border-l-4 border-emerald-600 pl-2">Stress vs Temperature Matrix</h4>
-                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2">
-                  {PLATE_TEMP_STEPS.map((temp, idx) => (
-                    <div key={temp} className="space-y-1">
-                      <label className="text-[8px] font-black text-slate-400 uppercase text-center block">{temp}°C</label>
-                      <input type="number" step="0.1" value={editingPlateMaterial.stresses[idx] === null ? '' : editingPlateMaterial.stresses[idx]} onChange={(e) => {
-                        const newStresses = [...editingPlateMaterial.stresses];
-                        newStresses[idx] = e.target.value === '' ? null : parseFloat(e.target.value);
-                        {/* Corrected state setter from setPlateMaterials to setEditingPlateMaterial to fix TS error */}
-                        setEditingPlateMaterial({...editingPlateMaterial, stresses: newStresses});
-                      }} className="w-full px-2 py-1 text-center border rounded-md text-[10px] font-mono focus:border-emerald-500 outline-none" />
-                    </div>
-                  ))}
-                </div>
+              <div className="grid grid-cols-8 gap-2">
+                {PLATE_TEMP_STEPS.map((temp, idx) => (
+                  <div key={temp} className="text-center"><label className="text-[8px] font-black uppercase">{temp}°C</label><input type="number" step="0.1" value={editingPlateMaterial.stresses[idx] === null ? '' : editingPlateMaterial.stresses[idx]} onChange={(e) => { const next = [...editingPlateMaterial.stresses]; next[idx] = e.target.value === '' ? null : parseFloat(e.target.value); setEditingPlateMaterial({...editingPlateMaterial, stresses: next}); }} className="w-full p-1 border rounded text-center text-[10px]" /></div>
+                ))}
               </div>
             </div>
-            <div className="mt-6 pt-4 border-t flex justify-end gap-3 border-slate-200 shrink-0">
-              <button onClick={() => setIsEditingPlateMaterial(false)} className="px-6 py-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
-              <button onClick={savePlateMaterial} className="px-8 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest rounded-lg shadow-lg">Save Plate</button>
-            </div>
+            <div className="mt-8 flex justify-end gap-3 pt-4 border-t"><button onClick={() => setIsEditingPlateMaterial(false)} className="px-4 py-2 text-[10px] font-black uppercase border rounded">Cancel</button><button onClick={savePlateMaterial} className="px-4 py-2 bg-indigo-600 text-white text-[10px] font-black uppercase rounded shadow-lg">Save</button></div>
           </div>
         </div>
       )}

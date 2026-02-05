@@ -149,6 +149,7 @@ const initialInputs: FlangeInputs = {
 const App: React.FC = () => {
   const importFileInputRef = useRef<HTMLInputElement>(null);
   
+  // 1. 상태 초기화 시 로컬 스토리지 데이터 우선 로드
   const [boltMaterials, setBoltMaterials] = useState<BoltMaterial[]>(() => {
     const saved = localStorage.getItem('flange_calc_bolt_materials');
     return saved ? JSON.parse(saved) : INITIAL_BOLT_MATERIALS;
@@ -179,6 +180,11 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : INITIAL_RING_STANDARDS;
   });
 
+  const [savedRecords, setSavedRecords] = useState<SavedRecord[]>(() => {
+    const saved = localStorage.getItem('flange_calc_saved_records');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [inputs, setInputs] = useState<FlangeInputs>(() => {
     const savedInputs = localStorage.getItem('flange_calc_current_inputs');
     if (savedInputs) {
@@ -192,13 +198,18 @@ const App: React.FC = () => {
     return initialInputs;
   });
 
-  const [savedRecords, setSavedRecords] = useState<SavedRecord[]>([]);
+  // 2. 자동 저장 Persistence Hooks (CSV 업로드 포함 모든 변경 감지)
+  useEffect(() => { localStorage.setItem('flange_calc_bolt_materials', JSON.stringify(boltMaterials)); }, [boltMaterials]);
+  useEffect(() => { localStorage.setItem('flange_calc_plate_materials', JSON.stringify(plateMaterials)); }, [plateMaterials]);
+  useEffect(() => { localStorage.setItem('flange_calc_tema_bolt_data', JSON.stringify(temaBoltData)); }, [temaBoltData]);
+  useEffect(() => { localStorage.setItem('flange_calc_tensioning_data', JSON.stringify(tensioningData)); }, [tensioningData]);
+  useEffect(() => { localStorage.setItem('flange_calc_gasket_types', JSON.stringify(gasketTypes)); }, [gasketTypes]);
+  useEffect(() => { localStorage.setItem('flange_calc_ring_standards', JSON.stringify(ringStandards)); }, [ringStandards]);
+  useEffect(() => { localStorage.setItem('flange_calc_current_inputs', JSON.stringify(inputs)); }, [inputs]);
+  useEffect(() => { localStorage.setItem('flange_calc_saved_records', JSON.stringify(savedRecords)); }, [savedRecords]);
+
   const [isFixedSizeSearch, setIsFixedSizeSearch] = useState<boolean>(false);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
-
-  useEffect(() => {
-    localStorage.setItem('flange_calc_current_inputs', JSON.stringify(inputs));
-  }, [inputs]);
 
   const calculateFullResults = useCallback((currentInputs: FlangeInputs): CalculationResults => {
     const boltData = temaBoltData.find(b => b.size === currentInputs.boltSize) || temaBoltData[0];
@@ -360,11 +371,9 @@ const App: React.FC = () => {
   const handleInputChange = (updatedInputs: FlangeInputs, changedFieldName: string) => {
     let finalInputs = { ...updatedInputs };
 
-    // 볼트 사이즈가 변경되면 고정 모드 활성화
     if (changedFieldName === 'boltSize') {
       setIsFixedSizeSearch(true);
     } else {
-      // 핵심 설계 인자 변경 시 전체 탐색 모드로 복구
       const coreDesignTriggers = ['insideDia', 'designPressure', 'designTemp', 'shellMaterial', 'g0'];
       if (coreDesignTriggers.includes(changedFieldName)) {
         setIsFixedSizeSearch(false);
@@ -388,12 +397,10 @@ const App: React.FC = () => {
     let minBcd = Infinity;
     let found = false;
 
-    // Define search range
     const sizesToSearch = isFixedSizeSearch 
       ? [activeInputs.boltSize] 
       : temaBoltData.filter(b => b.size >= 0.75).map(b => b.size);
     
-    // Bolt counts from 4 to 120 (multiples of 4)
     const countsToSearch = Array.from({ length: 30 }, (_, i) => (i + 1) * 4);
 
     for (const size of sizesToSearch) {
@@ -444,7 +451,6 @@ const App: React.FC = () => {
       gasketPreference: undefined 
     };
     setInputs(updatedInputs);
-    // Use timeout to ensure state update before calling handleOptimize
     setTimeout(() => handleOptimize(updatedInputs), 100);
   };
 
