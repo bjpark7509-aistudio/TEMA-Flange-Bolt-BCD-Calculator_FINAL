@@ -621,23 +621,25 @@ const App: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="p-4 rounded-3xl border border-slate-800 bg-[#161e31] flex items-center gap-5 transition-all">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shrink-0 ${isPccSafe ? 'bg-[#00c58d]' : 'bg-[#f83a3a]'}`}>
-                      <i className={`fa-solid ${isPccSafe ? 'fa-check' : 'fa-xmark'} text-white text-lg`}></i>
-                    </div>
-                    <div className="flex-1 flex justify-between items-center">
-                      <div className="flex flex-col">
-                        <span className="text-[9px] font-bold text-[#525f7a] uppercase tracking-widest">PCC-1 STATUS</span>
-                        <span className={`text-sm font-black uppercase tracking-tight ${isPccSafe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>
-                          {isPccSafe ? 'ACCEPTABLE' : 'RECHECK PCC'}
-                        </span>
+                  {inputs.usePcc1Check && (
+                    <div className="p-4 rounded-3xl border border-slate-800 bg-[#161e31] flex items-center gap-5 transition-all">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shrink-0 ${isPccSafe ? 'bg-[#00c58d]' : 'bg-[#f83a3a]'}`}>
+                        <i className={`fa-solid ${isPccSafe ? 'fa-check' : 'fa-xmark'} text-white text-lg`}></i>
                       </div>
-                      <div className="flex flex-col items-end">
-                        <span className="text-[9px] font-bold text-[#525f7a] uppercase tracking-widest">SYSTEM</span>
-                        <span className={`text-xs font-black tracking-widest text-slate-400 uppercase`}>API 660</span>
+                      <div className="flex-1 flex justify-between items-center">
+                        <div className="flex flex-col">
+                          <span className="text-[9px] font-bold text-[#525f7a] uppercase tracking-widest">PCC-1 STATUS</span>
+                          <span className={`text-sm font-black uppercase tracking-tight ${isPccSafe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>
+                            {isPccSafe ? 'ACCEPTABLE' : 'RECHECK PCC'}
+                          </span>
+                        </div>
+                        <div className="flex flex-col items-end">
+                          <span className="text-[9px] font-bold text-[#525f7a] uppercase tracking-widest">SYSTEM</span>
+                          <span className={`text-xs font-black tracking-widest text-slate-400 uppercase`}>API 660</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="grid grid-cols-2 gap-4 relative z-10 mt-6">
                     <div className="bg-slate-900/50 p-6 rounded-[1.5rem] border border-white/5 space-y-4 text-center"><div className="text-[8px] font-black text-slate-500 uppercase tracking-widest h-8 flex items-center justify-center px-2">Total Bolt Root Area</div><div className="text-lg font-black text-sky-400">{results.totalBoltArea.toFixed(1)} <small className="text-[9px]">mm²</small></div></div>

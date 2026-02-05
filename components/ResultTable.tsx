@@ -9,7 +9,6 @@ interface Props {
 }
 
 export const ResultTable: React.FC<Props> = ({ inputs, results, temaBoltData, tensioningData }) => {
-  // Set the default state of the DETAIL button to false
   const [showDetails, setShowDetails] = useState(false);
   const boltRef = temaBoltData.find(b => b.size === inputs.boltSize);
   const tensionRef = tensioningData.find(t => t.size === inputs.boltSize);
@@ -50,6 +49,11 @@ export const ResultTable: React.FC<Props> = ({ inputs, results, temaBoltData, te
   const g0ResultBeforeCorr = g0Numerator / (g0Denominator || 1);
   const g0FinalResult = g0ResultBeforeCorr + inputs.corrosionAllowance;
 
+  // Visual Styles for the breakdown cards
+  const breakdownLabelClass = "text-[11px] font-bold text-slate-700 uppercase";
+  const breakdownValueClass = "text-[12px] font-black text-slate-900 tabular-nums";
+  const breakdownUnderlineClass = "border-b-2 border-sky-100 pb-0.5 px-1";
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -72,7 +76,6 @@ export const ResultTable: React.FC<Props> = ({ inputs, results, temaBoltData, te
 
       {/* Method Cards */}
       <div className="grid grid-cols-1 gap-3">
-        {/* Method 1 */}
         <div className={results.selectedBcdSource === 1 ? cardActiveBaseClass : cardBaseClass}>
           <div className="flex justify-between items-start mb-1">
             <span className={titleClass}>1. TEMA MIN PITCH</span>
@@ -89,11 +92,10 @@ export const ResultTable: React.FC<Props> = ({ inputs, results, temaBoltData, te
             </div>
           )}
           <div className={resultTextClass}>
-            {results.bcdMethod1.toFixed(0)} <small className="text-[10px] text-black">mm</small>
+            {results.bcdMethod1.toFixed(0)} <small className="text-[10px] text-black font-bold">mm</small>
           </div>
         </div>
 
-        {/* Method 2 */}
         <div className={results.selectedBcdSource === 2 ? cardActiveBaseClass : cardBaseClass}>
           <div className="flex justify-between items-start mb-1">
             <span className={titleClass}>2. HUB / RADIAL LOGIC</span>
@@ -110,11 +112,10 @@ export const ResultTable: React.FC<Props> = ({ inputs, results, temaBoltData, te
             </div>
           )}
           <div className={resultTextClass}>
-            {results.bcdMethod2.toFixed(0)} <small className="text-[10px] text-black">mm</small>
+            {results.bcdMethod2.toFixed(0)} <small className="text-[10px] text-black font-bold">mm</small>
           </div>
         </div>
 
-        {/* Method 3 */}
         <div className={results.selectedBcdSource === 3 ? cardActiveBaseClass : cardBaseClass}>
           <div className="flex justify-between items-start mb-1">
             <span className={titleClass}>3. GASKET & CLEARANCE</span>
@@ -131,77 +132,86 @@ export const ResultTable: React.FC<Props> = ({ inputs, results, temaBoltData, te
             </div>
           )}
           <div className={resultTextClass}>
-            {results.bcdMethod3.toFixed(0)} <small className="text-[10px] text-black">mm</small>
+            {results.bcdMethod3.toFixed(0)} <small className="text-[10px] text-black font-bold">mm</small>
           </div>
         </div>
       </div>
 
-      {/* Bolt Spacing Info */}
-      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
-        <div className="flex justify-between items-center mb-1">
-          <h3 className="text-[9px] font-black text-black uppercase tracking-widest flex items-center gap-2">
-            <i className="fa-solid fa-arrows-left-right text-slate-400"></i> Bolt Spacing Info
+      {/* Breakdown Section: Styled as per reference image */}
+      <div className="space-y-4 pt-2">
+        {/* Card 1: Gasket Breakdown */}
+        <div className="bg-sky-50/40 p-5 rounded-2xl border border-sky-100 shadow-sm space-y-4">
+          <h3 className="text-[11px] font-black text-sky-800 uppercase tracking-widest flex items-center gap-2">
+            <i className="fa-solid fa-circle-info opacity-40"></i> Gasket Breakdown
           </h3>
-          <span className={`${spacingStatusColor} text-white text-[8px] font-black px-2 py-0.5 rounded uppercase`}>
-            {spacingStatus}
-          </span>
-        </div>
-        <div className="space-y-1.5">
-          <div className="flex justify-between text-[10px] font-bold">
-            <span className="text-black">Min Allowable Pitch:</span>
-            <span className="text-black tabular-nums">{results.boltSpacingMin.toFixed(2)} mm</span>
-          </div>
-          <div className="flex justify-between text-[10px] font-bold">
-            <span className="text-black italic">Geometric Pitch:</span>
-            <span className="text-black tabular-nums">{physicalPitch.toFixed(2)} mm</span>
-          </div>
-          <div className="flex justify-between text-[10px] font-bold border-t border-slate-50 pt-1.5">
-            <span className="text-black italic">Max bolt pitch (WHC Standard):</span>
-            <span className="text-black tabular-nums border-b border-dotted border-black">{results.maxBoltSpacing.toFixed(2)} mm</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Breakdown Section */}
-      <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100 space-y-3">
-        <h3 className="text-[9px] font-black text-black uppercase tracking-widest flex items-center gap-2 mb-2">
-          <i className="fa-solid fa-circle-info text-slate-400"></i> Gasket Breakdown
-        </h3>
-        <div className="space-y-2">
-          <div className="flex justify-between text-[10px] font-bold">
-            <span className="text-black">Inner Ring (IR):</span>
-            <span className="text-black">{results.innerRingWidth.toFixed(1)} mm</span>
-          </div>
-          <div className="flex justify-between text-[10px] font-bold">
-            <span className="text-black">Outer Ring (OR):</span>
-            <span className="text-black">{results.outerRingWidth.toFixed(1)} mm</span>
-          </div>
-          <div className="flex justify-between text-[10px] font-bold">
-            <span className="text-black">Seating ID/OD:</span>
-            <span className="text-black">{results.seatingID.toFixed(1)} / {results.seatingOD.toFixed(1)} mm</span>
-          </div>
-        </div>
-
-        {/* Hub Thickness Section */}
-        <h3 className="text-[9px] font-black text-black uppercase tracking-widest flex items-center gap-2 mb-2 mt-4">
-          <i className="fa-solid fa-tower-observation text-slate-400"></i> Hub Thickness (g1)
-        </h3>
-        <div className="space-y-2">
-          {showDetails && (
-            <div className="bg-white/50 p-2 rounded border border-slate-100 mb-2 animate-in fade-in">
-              <div className={detailTextClass}>(P · (ID/2 + Corr)) / (S · E - 0.6 · P) + Corr</div>
-              <div className={substitutionTextClass}>
-                ({pMpa.toFixed(3)} · ({inputs.insideDia/2} + {inputs.corrosionAllowance})) / ({results.shellStress.toFixed(1)} · {inputs.jointEfficiency} - 0.6 · {pMpa.toFixed(3)}) + {inputs.corrosionAllowance} =
-              </div>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className={breakdownLabelClass}>Inner Ring (IR):</span>
+              <span className={breakdownValueClass}>{results.innerRingWidth.toFixed(1)} mm</span>
             </div>
-          )}
-          <div className="flex justify-between text-[10px] font-bold">
-            <span className="text-black">Calculated Shell Thickness (g₀):</span>
-            <span className="text-black">{g0FinalResult.toFixed(2)} mm</span>
+            <div className="flex justify-between items-center">
+              <span className={breakdownLabelClass}>Outer Ring (OR):</span>
+              <span className={breakdownValueClass}>{results.outerRingWidth.toFixed(1)} mm</span>
+            </div>
+            <div className="w-full h-px bg-sky-200/50 my-2"></div>
+            <div className="flex justify-between items-center">
+              <span className={breakdownLabelClass}>Gasket Seal OD:</span>
+              <span className={`${breakdownValueClass} ${breakdownUnderlineClass}`}>{results.seatingOD.toFixed(0)} mm</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className={breakdownLabelClass}>Gasket Seal ID:</span>
+              <span className={`${breakdownValueClass} ${breakdownUnderlineClass}`}>{results.seatingID.toFixed(0)} mm</span>
+            </div>
+            <div className="flex justify-between items-center pt-2">
+              <span className="text-[11px] font-black text-slate-800 uppercase">Total Gasket O.D</span>
+              <span className="text-[14px] font-black text-slate-900">{results.gasketOD.toFixed(1)} mm</span>
+            </div>
           </div>
-          <div className="flex justify-between text-xs font-black pt-1 border-t border-slate-200">
-            <span className="text-sky-700 uppercase">Final Hub Thickness (g1):</span>
-            <span className="text-sky-700">{inputs.g1} mm</span>
+        </div>
+
+        {/* Card 2: Flange OD */}
+        <div className="bg-amber-50/40 p-5 rounded-2xl border border-amber-100 shadow-sm space-y-4">
+          <h3 className="text-[11px] font-black text-amber-800 uppercase tracking-widest flex items-center gap-2">
+            <i className="fa-solid fa-expand opacity-40"></i> Flange OD
+          </h3>
+          <div className="space-y-1">
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] font-bold italic text-amber-600">Formula:</span>
+              <span className="text-[10px] font-bold text-amber-800">BCD + (2 × E)</span>
+            </div>
+            <div className="w-full h-px bg-amber-200/50 my-2"></div>
+            <div className="flex justify-between items-center">
+              <span className="text-[11px] font-bold text-slate-700 font-mono">
+                {results.finalBCD.toFixed(1)} + (2 × {results.edgeDistance.toFixed(2)})
+              </span>
+              <span className="text-[14px] font-black text-slate-900 flex items-center gap-1">
+                <span className="text-amber-600 font-bold">=</span> {results.finalOD.toFixed(0)} <small className="text-[10px] font-black uppercase">mm</small>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 3: Minimum Hub Thickness */}
+        <div className="bg-indigo-50/40 p-5 rounded-2xl border border-indigo-100 shadow-sm space-y-4">
+          <h3 className="text-[11px] font-black text-indigo-800 uppercase tracking-widest flex items-center gap-2">
+            <i className="fa-solid fa-calculator opacity-40"></i> Minimum Hub Thickness (g₀)
+          </h3>
+          <div className="space-y-3">
+            <div className="flex justify-between items-start gap-4">
+              <span className="text-[10px] font-bold italic text-indigo-500">Formula:</span>
+              <span className="text-[9px] font-mono text-indigo-800 text-right">(P · (ID/2 + Corr)) / (S · E - 0.6 · P) + Corr</span>
+            </div>
+            <div className="w-full h-px bg-indigo-200/50 my-1"></div>
+            <div className="flex justify-between items-center">
+              <span className={breakdownLabelClass}>Shell Allowable Stress (S):</span>
+              <span className={breakdownValueClass}>{results.shellStress.toFixed(1)} MPa</span>
+            </div>
+            <div className="flex justify-between items-center pt-1">
+              <span className="text-[11px] font-black text-indigo-700 uppercase">Final g₀ (Rounded Up):</span>
+              <span className="text-[14px] font-black text-indigo-600 flex items-center gap-1">
+                <span className="font-bold">=</span> {inputs.g0} <small className="text-[10px] font-black uppercase">mm</small>
+              </span>
+            </div>
           </div>
         </div>
       </div>

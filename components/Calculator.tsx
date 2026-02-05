@@ -336,7 +336,7 @@ export const Calculator: React.FC<Props> = ({ inputs, onInputChange, onOptimize,
             <button
               type="button"
               onClick={toggleHydraulicTensioning}
-              className={`wid-full py-2.5 px-4 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 border-2 ${inputs.useHydraulicTensioning ? 'bg-sky-600 border-sky-600 text-white shadow-lg' : 'bg-white border-slate-200 text-slate-400'}`}
+              className={`w-full py-2 px-4 rounded-md text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3 border ${inputs.useHydraulicTensioning ? 'bg-sky-50 border-sky-400 text-sky-700 shadow-sm' : 'bg-white border-gray-300 text-slate-400 hover:bg-slate-50'}`}
             >
               <i className="fa-solid fa-oil-can"></i> HYDRAULIC BOLT TENSIONING
             </button>
