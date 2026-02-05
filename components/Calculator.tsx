@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { FlangeInputs, CalculationResults, BoltMaterial, ShellMaterial, TemaBoltInfo, GasketType, RingStandard } from '../types';
 
@@ -101,7 +100,6 @@ export const Calculator: React.FC<Props> = ({ inputs, onInputChange, onOptimize,
     onInputChange(nextInputs, name);
   };
 
-  // Improved trigger to ensure local UI changes are included in optimization
   const handleTriggerOptimize = () => {
     const combinedInputs = { ...inputs, ...localManualValues };
     onOptimize?.(combinedInputs);
@@ -312,8 +310,8 @@ export const Calculator: React.FC<Props> = ({ inputs, onInputChange, onOptimize,
             <div><label className={labelClass}>Bolt Count (EA)</label><input type="number" name="boltCount" value={inputs.boltCount} onChange={handleChange} className={inputClass} /></div>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div><label className={labelClass}>g0 (mm)</label><input type="number" name="g0" value={inputs.g0} onChange={handleChange} className={inputClass} /></div>
-            <div><label className={labelClass}>g1 (mm)</label><input type="number" name="g1" value={inputs.g1.toFixed(0)} readOnly className={`${inputClass} bg-slate-100 font-bold text-sky-700 cursor-not-allowed`} /></div>
+            <div><label className={labelClass}>Hub Thickness (g1)</label><input type="number" name="g0" value={inputs.g0} onChange={handleChange} className={inputClass} /></div>
+            <div><label className={labelClass}>Hub Small End (g0)</label><input type="number" name="g1" value={inputs.g1.toFixed(0)} readOnly className={`${inputClass} bg-slate-100 font-bold text-sky-700 cursor-not-allowed`} /></div>
           </div>
 
           <div className="flex justify-end pt-1"><button onClick={resetGasketStandard} className="text-[9px] bg-sky-600 hover:bg-sky-700 text-white px-4 py-1.5 rounded-full font-black flex items-center gap-2 shadow-md transition-all"><i className="fa-solid fa-rotate-left"></i> GASKET RESET</button></div>
@@ -338,7 +336,7 @@ export const Calculator: React.FC<Props> = ({ inputs, onInputChange, onOptimize,
             <button
               type="button"
               onClick={toggleHydraulicTensioning}
-              className={`w-full py-2.5 px-4 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 border-2 ${inputs.useHydraulicTensioning ? 'bg-sky-600 border-sky-600 text-white shadow-lg' : 'bg-white border-slate-200 text-slate-400'}`}
+              className={`wid-full py-2.5 px-4 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 border-2 ${inputs.useHydraulicTensioning ? 'bg-sky-600 border-sky-600 text-white shadow-lg' : 'bg-white border-slate-200 text-slate-400'}`}
             >
               <i className="fa-solid fa-oil-can"></i> HYDRAULIC BOLT TENSIONING
             </button>

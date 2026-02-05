@@ -192,19 +192,13 @@ const App: React.FC = () => {
     return initialInputs;
   });
 
-  // Always initialize as empty to ensure clean list on page load
   const [savedRecords, setSavedRecords] = useState<SavedRecord[]>([]);
-  
   const [isFixedSizeSearch, setIsFixedSizeSearch] = useState<boolean>(false);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
 
   useEffect(() => {
     localStorage.setItem('flange_calc_current_inputs', JSON.stringify(inputs));
   }, [inputs]);
-
-  useEffect(() => {
-    localStorage.setItem('flange_calc_bolt_materials', JSON.stringify(boltMaterials));
-  }, [boltMaterials]);
 
   const calculateFullResults = useCallback((currentInputs: FlangeInputs): CalculationResults => {
     const boltData = temaBoltData.find(b => b.size === currentInputs.boltSize) || temaBoltData[0];
@@ -243,21 +237,14 @@ const App: React.FC = () => {
     autoSeatingOD = Math.ceil(autoSeatingOD);
     const autoSeatingID = Math.ceil(autoSeatingOD - (2 * currentInputs.gasketSeatingWidth));
 
-    // Manual Override Logic: If useManualOverride is true and value > 0, it becomes the FIXED target
+    // Manual Override Logic
     const seatingID = (currentInputs.useManualOverride && currentInputs.manualSeatingID !== 0) ? currentInputs.manualSeatingID : autoSeatingID;
     const seatingOD = (currentInputs.useManualOverride && currentInputs.manualSeatingOD !== 0) ? currentInputs.manualSeatingOD : autoSeatingOD;
     
     const gasketOD = seatingOD + (currentInputs.hasOuterRing ? (2 * outerRingWidth) : 0);
     const gasketID = seatingID - (currentInputs.hasInnerRing ? (2 * innerRingWidth) : 0);
 
-    // Method 3 BCD (Gasket-based) - This uses the target seatingOD (which might be fixed)
-    const bcdMethod3 = Math.ceil(
-      seatingOD + 
-      (2 * outerRingWidth) + 
-      (2 * bConst) + 
-      (2 * effectiveC) + 
-      boltHoleSizeVal
-    );
+    const bcdMethod3 = Math.ceil(seatingOD + (2 * outerRingWidth) + (2 * bConst) + (2 * effectiveC) + boltHoleSizeVal);
 
     const bcdTema = Math.max(bcdMethod1, bcdMethod2, bcdMethod3);
     const selectedBcdSource = bcdTema === bcdMethod1 ? 1 : (bcdTema === bcdMethod2 ? 2 : 3);
@@ -292,7 +279,6 @@ const App: React.FC = () => {
     const Cul = 25.4; 
     const bWidth = b0Width > 6 ? 0.5 * Cul * Math.sqrt(b0Width / Cul) : b0Width;
     
-    // --- Self-energizing types special logic ---
     const isSelfEnergizing = currentInputs.gasketType.includes('Self-energizing');
     const gMeanDia = isSelfEnergizing ? seatingOD : (b0Width > 6 ? seatingOD - (2 * bWidth) : (seatingID + seatingOD) / 2);
 
@@ -309,7 +295,6 @@ const App: React.FC = () => {
       wm2 = (Math.PI * bWidth * gMeanDia * (gasketY * 0.00689476)) + (currentInputs.passPartitionWidth * currentInputs.passPartitionLength * (passY * 0.00689476));
     }
     const wm1 = hForce + hpForce;
-    // ------------------------------------------
 
     const mat = boltMaterials.find(m => m.id === currentInputs.boltMaterial) || boltMaterials[0];
     const ambientAllowableStress = mat.stresses[BOLT_TEMP_STEPS.indexOf(40)] || 138;
@@ -375,11 +360,13 @@ const App: React.FC = () => {
   const handleInputChange = (updatedInputs: FlangeInputs, changedFieldName: string) => {
     let finalInputs = { ...updatedInputs };
 
+    // 볼트 사이즈가 변경되면 고정 모드 활성화
     if (changedFieldName === 'boltSize') {
       setIsFixedSizeSearch(true);
     } else {
-      const triggers = ['insideDia', 'designPressure', 'designTemp', 'shellMaterial', 'g0'];
-      if (triggers.includes(changedFieldName)) {
+      // 핵심 설계 인자 변경 시 전체 탐색 모드로 복구
+      const coreDesignTriggers = ['insideDia', 'designPressure', 'designTemp', 'shellMaterial', 'g0'];
+      if (coreDesignTriggers.includes(changedFieldName)) {
         setIsFixedSizeSearch(false);
       }
     }
@@ -398,17 +385,19 @@ const App: React.FC = () => {
     const activeInputs = customInputs || inputs;
     let bestSize = activeInputs.boltSize;
     let bestCount = activeInputs.boltCount;
-    let minVal = Infinity; 
+    let minBcd = Infinity;
     let found = false;
 
+    // Define search range
     const sizesToSearch = isFixedSizeSearch 
       ? [activeInputs.boltSize] 
       : temaBoltData.filter(b => b.size >= 0.75).map(b => b.size);
     
-    const boltCounts = Array.from({ length: 30 }, (_, i) => (i + 1) * 4);
+    // Bolt counts from 4 to 120 (multiples of 4)
+    const countsToSearch = Array.from({ length: 30 }, (_, i) => (i + 1) * 4);
 
     for (const size of sizesToSearch) {
-      for (const count of boltCounts) {
+      for (const count of countsToSearch) {
         const testInputs = { ...activeInputs, boltSize: size, boltCount: count };
         const testResults = calculateFullResults(testInputs);
         
@@ -416,37 +405,27 @@ const App: React.FC = () => {
         const isSpacingOk = testResults.spacingOk;
 
         if (isAreaSafe && isSpacingOk) {
-          const loadReq = Math.max(testResults.wm1, testResults.wm2);
-          const currentMargin = (testResults.totalBoltLoadDesign - loadReq) / (loadReq || 1);
-          const currentBcd = testResults.finalBCD;
-
-          if (isFixedSizeSearch) {
-            if (currentMargin >= 0 && currentMargin < minVal) {
-              minVal = currentMargin;
-              bestSize = size;
-              bestCount = count;
-              found = true;
-            }
-          } else {
-            if (currentBcd < minVal) {
-              minVal = currentBcd;
-              bestSize = size;
-              bestCount = count;
-              found = true;
-            }
+          if (testResults.finalBCD < minBcd) {
+            minBcd = testResults.finalBCD;
+            bestSize = size;
+            bestCount = count;
+            found = true;
           }
         }
       }
     }
 
     if (found) {
-      setInputs(prev => ({ ...prev, ...activeInputs, boltSize: bestSize, boltCount: bestCount }));
-      const mode = isFixedSizeSearch ? "Smallest Margin" : "Smallest BCD";
-      const marginDisp = isFixedSizeSearch ? (minVal * 100).toFixed(2) : "Calculated";
-      const bcdDisp = isFixedSizeSearch ? "Calculated" : minVal.toFixed(0);
-      alert(`Optimization Completed (${mode})!\nSize: ${bestSize}"\nCount: ${bestCount} EA\nTarget Val: ${isFixedSizeSearch ? marginDisp+'%' : bcdDisp+' mm'}`);
+      setInputs(prev => ({ 
+        ...prev, 
+        ...activeInputs, 
+        boltSize: bestSize, 
+        boltCount: bestCount 
+      }));
+      const mode = isFixedSizeSearch ? "Fixed Bolt Size" : "Smallest BCD";
+      alert(`Optimization Completed (${mode})!\nBolt Size: ${bestSize}"\nBolt Count: ${bestCount} EA\nResulting BCD: ${minBcd.toFixed(0)} mm`);
     } else {
-      alert(`No safe configuration found. Try reducing pressure or increasing gasket width.`);
+      alert("No configuration found that satisfies both Safety and Spacing requirements. Try adjusting design conditions.");
     }
   };
 
@@ -465,7 +444,8 @@ const App: React.FC = () => {
       gasketPreference: undefined 
     };
     setInputs(updatedInputs);
-    setTimeout(() => handleOptimize(updatedInputs), 100); 
+    // Use timeout to ensure state update before calling handleOptimize
+    setTimeout(() => handleOptimize(updatedInputs), 100);
   };
 
   const handleGlobalReset = () => {
@@ -621,7 +601,6 @@ const App: React.FC = () => {
                 <div className="bg-[#0f172a] mx-3 mb-3 p-8 rounded-[2rem] border border-slate-800 shadow-2xl flex flex-col text-white relative">
                   <div className="flex items-center gap-4 mb-6"><div className="h-[1px] flex-1 bg-white/10"></div><span className="text-[10px] font-black text-slate-500 tracking-[0.3em] uppercase">LOAD ANALYSIS</span><div className="h-[1px] flex-1 bg-white/10"></div></div>
                   
-                  {/* BOLT LOAD STATUS */}
                   <div className="p-4 rounded-3xl border border-slate-800 bg-[#161e31] flex items-center gap-5 mb-3 transition-all">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shrink-0 ${isSafe ? 'bg-[#00c58d]' : 'bg-[#f83a3a]'}`}>
                       <i className={`fa-solid ${isSafe ? 'fa-check' : 'fa-xmark'} text-white text-lg`}></i>
@@ -642,26 +621,23 @@ const App: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* PCC-1 STATUS - Conditional display */}
-                  {inputs.usePcc1Check && (
-                    <div className="p-4 rounded-3xl border border-slate-800 bg-[#161e31] flex items-center gap-5 transition-all">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shrink-0 ${isPccSafe ? 'bg-[#00c58d]' : 'bg-[#f83a3a]'}`}>
-                        <i className={`fa-solid ${isPccSafe ? 'fa-check' : 'fa-xmark'} text-white text-lg`}></i>
+                  <div className="p-4 rounded-3xl border border-slate-800 bg-[#161e31] flex items-center gap-5 transition-all">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg shrink-0 ${isPccSafe ? 'bg-[#00c58d]' : 'bg-[#f83a3a]'}`}>
+                      <i className={`fa-solid ${isPccSafe ? 'fa-check' : 'fa-xmark'} text-white text-lg`}></i>
+                    </div>
+                    <div className="flex-1 flex justify-between items-center">
+                      <div className="flex flex-col">
+                        <span className="text-[9px] font-bold text-[#525f7a] uppercase tracking-widest">PCC-1 STATUS</span>
+                        <span className={`text-sm font-black uppercase tracking-tight ${isPccSafe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>
+                          {isPccSafe ? 'ACCEPTABLE' : 'RECHECK PCC'}
+                        </span>
                       </div>
-                      <div className="flex-1 flex justify-between items-center">
-                        <div className="flex flex-col">
-                          <span className="text-[9px] font-bold text-[#525f7a] uppercase tracking-widest">PCC-1 STATUS</span>
-                          <span className={`text-sm font-black uppercase tracking-tight ${isPccSafe ? 'text-[#00c58d]' : 'text-[#f83a3a]'}`}>
-                            {isPccSafe ? 'ACCEPTABLE' : 'RECHECK PCC'}
-                          </span>
-                        </div>
-                        <div className="flex flex-col items-end">
-                          <span className="text-[9px] font-bold text-[#525f7a] uppercase tracking-widest">SYSTEM</span>
-                          <span className={`text-xs font-black tracking-widest text-slate-400 uppercase`}>API 660</span>
-                        </div>
+                      <div className="flex flex-col items-end">
+                        <span className="text-[9px] font-bold text-[#525f7a] uppercase tracking-widest">SYSTEM</span>
+                        <span className={`text-xs font-black tracking-widest text-slate-400 uppercase`}>API 660</span>
                       </div>
                     </div>
-                  )}
+                  </div>
 
                   <div className="grid grid-cols-2 gap-4 relative z-10 mt-6">
                     <div className="bg-slate-900/50 p-6 rounded-[1.5rem] border border-white/5 space-y-4 text-center"><div className="text-[8px] font-black text-slate-500 uppercase tracking-widest h-8 flex items-center justify-center px-2">Total Bolt Root Area</div><div className="text-lg font-black text-sky-400">{results.totalBoltArea.toFixed(1)} <small className="text-[9px]">mm²</small></div></div>
